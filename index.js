@@ -8,18 +8,16 @@ var salty = module.exports = {
   nacl: nacl,
   encode: base58.encode, // encode a buffer into a string
   decode: base58.decode, // decode a buffer from a string
+  hash: function (buf) { // hash a buffer
+    if (typeof buf === 'string') buf = Buffer(buf);
+    return nacl.crypto_hash_sha256(nacl.crypto_hash_sha256(buf));
+  },
+  nonce: function () {
+    var nonce = Buffer(nacl.crypto_box_NONCEBYTES);
+    nacl.randombytes_buf(nonce);
+    return nonce;
+  },
   xor: nacl.crypto_stream_xor // scramble or unscramble a buffer using a nonce+k pair
-};
-// hash a buffer
-salty.hash = function (buf) {
-  if (typeof buf === 'string') buf = Buffer(buf);
-  return nacl.crypto_hash_sha256(nacl.crypto_hash_sha256(buf));
-};
-// get a new nonce
-salty.nonce = function () {
-  var nonce = Buffer(nacl.crypto_box_NONCEBYTES);
-  nacl.randombytes_buf(nonce);
-  return nonce;
 };
 // DER definition for salty identity
 salty.Identity = asn1.define('Identity', function () {
@@ -46,9 +44,9 @@ function makePrototype (methods) {
         else ret[k] = self[k];
       });
       return ret;
-    }
+    },
+    toString: function () { return salty.encode(this.toBuffer()) }
   };
-  if (methods && methods.toBuffer) ret.toString = function () { return salty.encode(this.toBuffer()) };
   Object.keys(methods || {}).forEach(function (k) { ret[k] = methods[k] });
   return ret;
 };
@@ -109,7 +107,7 @@ salty.wallet = function (buf) {
     },
     // encrypt a stream using a nonce+k pair (caution: does not hide length)
     encryptStream: function (nonce, identity) {
-      var k = this.secret(salty.identity(identity));
+      var k = this.secret(identity);
       return through(function write (buf) {
         var ctxt = salty.xor(buf, nonce, k);
         if (!ctxt) return this.emit('error', new Error('encryption failed'));
@@ -118,7 +116,7 @@ salty.wallet = function (buf) {
     },
     // decrypt a stream using a nonce+k pair
     decryptStream: function (nonce, identity) {
-      var k = this.secret(salty.identity(identity));
+      var k = this.secret(identity);
       return through(function write (buf) {
         var m = salty.xor(buf, nonce, k);
         if (!m) return this.emit('error', new Error('decryption failed'));
