@@ -171,4 +171,13 @@ describe('tests', function () {
         done();
       });
   });
+
+  it('alice creates a salty file for bob', function () {
+    var intro = salty.Intro.encode({
+      version: 1,
+      type: 1,
+      headerLength: 12345
+    }, 'der');
+    console.log(intro.length, intro);
+  });
 });
