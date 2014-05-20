@@ -3,6 +3,7 @@ var nacl = require('sodium').api
   , qr = require('qr-image')
   , base58 = require('base58-native').base58Check
   , through = require('through')
+  , pemtools = require('pemtools')
 
 var salty = module.exports = {
   nacl: nacl,
@@ -53,7 +54,7 @@ function makePrototype (methods) {
 // hydrate an identity from a string/buffer, and/or add methods
 salty.identity = function (buf) {
   if (typeof buf === 'string') buf = salty.decode(buf);
-  var identity = Buffer.isBuffer(buf) ? salty.Identity.decode(buf, 'der') : buf;
+  var identity = Buffer.isBuffer(buf) ? salty.Identity.decode(buf, 'der') : buf || {};
   identity.__proto__ = makePrototype({
     // convert identity to a buffer
     toBuffer: function () { return salty.Identity.encode(this, 'der') },
@@ -63,6 +64,9 @@ salty.identity = function (buf) {
     verify: function (sig, detachedBuf) {
       if (detachedBuf) sig = Buffer.concat([sig, detachedBuf]);
       return nacl.crypto_sign_open(sig, this.verifyPk);
+    },
+    toPEM: function (passphrase) {
+      return pemtools(this.toBuffer(), 'SALTY IDENTITY', passphrase).toString();
     }
   });
   return identity;
@@ -113,7 +117,16 @@ salty.wallet = function (buf) {
       });
     },
     // convert wallet to a QR code
-    toImage: function (options) { return qr.image('salty:w-' + salty.encode(this.toBuffer(), options)) }
+    toImage: function (options) { return qr.image('salty:w-' + salty.encode(this.toBuffer(), options)) },
+    toPEM: function (passphrase) {
+      return pemtools(this.toBuffer(), 'SALTY WALLET', passphrase).toString();
+    }
   });
   return wallet;
+};
+salty.fromPEM = function (str, passphrase) {
+  var pem = pemtools(str, null, passphrase);
+  if (pem.tag === 'SALTY IDENTITY') return salty.identity(pem.toBuffer());
+  else if (pem.tag === 'SALTY WALLET') return salty.wallet(pem.toBuffer());
+  else throw new Error('not a salty PEM');
 };

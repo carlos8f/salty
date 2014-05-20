@@ -112,6 +112,20 @@ describe('tests', function () {
       });
   });
 
+  it('identity pem', function () {
+    var pem = alice.identity.toPEM();
+    assert(typeof pem === 'string');
+    var identity = salty.fromPEM(pem);
+    assert.deepEqual(identity, alice.identity);
+  });
+
+  it('wallet pem', function () {
+    var pem = alice.toPEM('my secret wallet');
+    assert(typeof pem === 'string');
+    var wallet = salty.fromPEM(pem, 'my secret wallet');
+    assert.deepEqual(wallet, alice);
+  });
+
   it('stream fixture', function (done) {
     request({encoding: null, uri: 'https://raw.githubusercontent.com/carlos8f/node-buffet/master/test/files/folder/Alice-white-rabbit.jpg'})
       .pipe(fs.createWriteStream(p))
