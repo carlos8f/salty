@@ -13,8 +13,8 @@ var salty = module.exports = {
     if (typeof buf === 'string') buf = Buffer(buf);
     return nacl.crypto_hash_sha256(nacl.crypto_hash_sha256(buf));
   },
-  nonce: function () {
-    var nonce = Buffer(nacl.crypto_box_NONCEBYTES);
+  nonce: function (len) {
+    var nonce = Buffer(len || nacl.crypto_box_NONCEBYTES);
     nacl.randombytes_buf(nonce);
     return nonce;
   },
