@@ -10,7 +10,7 @@
     "pemtools": "git+https://gist.github.com/f0ab86a32d130c3634a3.git",
     "qr-image": "^1.1.0",
     "sodium": "^1.0.11",
-    "through": "^2.3.4"
+    "block-stream": "git+https://github.com/carlos8f/block-stream.git"
   },
   "devDependencies": {
     "mocha": "*",

@@ -4,6 +4,7 @@ var nacl = require('sodium').api
   , base58 = require('base58-native').base58Check
   , es = require('event-stream')
   , pemtools = require('pemtools')
+  , BlockStream = require('block-stream')
 
 var salty = module.exports = {
   nacl: nacl,
@@ -122,15 +123,57 @@ salty.wallet = function (buf) {
       return nacl.crypto_box_beforenm(salty.identity(identity).encryptPk, this.decryptSk);
     },
     // encrypt a stream using a nonce+k pair (caution: does not hide length)
-    peerStream: function (nonce, identity) {
+    encryptStream: function (identity) {
       var k = this.secret(identity);
-      return es.through(function write (buf) {
-        this.queue(salty.xor(buf, nonce, k));
+      var bs = new BlockStream(salty.format.blockLength, {nopad: true});
+      var enc = es.through();
+      bs.on('data', function (buf) {
+        var n = salty.nonce(nacl.crypto_stream_NONCEBYTES);
+        var len = Buffer(2);
+        len.writeUInt16BE(buf.length, 0);
+        enc.queue(len);
+        enc.queue(n);
+        var ctxt = salty.xor(buf, n, k);
+        enc.queue(ctxt);
       });
+      bs.on('end', function () {
+        enc.end();
+      });
+      bs.on('drain', function () {
+        var self = this;
+        setImmediate(function () {
+          self.flush();
+        });
+      });
+      return es.duplex(bs, enc);
+    },
+    decryptStream: function (identity) {
+      var k = this.secret(identity);
+      var bs = new BlockStream(2 + nacl.crypto_stream_NONCEBYTES + salty.format.blockLength);
+      var dec = es.through();
+      bs.on('data', function (buf) {
+        var idx = 0;
+        var len = buf.readUInt16BE(idx);
+        idx += 2;
+        var n = buf.slice(idx, idx + nacl.crypto_stream_NONCEBYTES);
+        idx += nacl.crypto_stream_NONCEBYTES;
+        var m = salty.xor(buf.slice(idx, idx + len), n, k);
+        dec.write(m);
+      });
+      bs.on('end', function () {
+        dec.end();
+      });
+      bs.on('drain', function () {
+        var self = this;
+        setImmediate(function () {
+          self.flush();
+        });
+      });
+      return es.duplex(bs, dec);
     },
     writeFile: function (identity, headers) {
       // write the intro
-      var intro = Buffer(salty.format.introBytes);
+      var intro = Buffer(salty.format.introLength);
       intro.writeUInt8(salty.format.magicByte, 0);
       intro.writeUInt8(salty.format.saltyVersion, 1);
       intro.writeUInt8(salty.format.types.message, 2);
@@ -244,9 +287,10 @@ salty.fromPEM = function (str, passphrase) {
 };
 salty.format = {
   magicByte: 0x59,
-  introBytes: 5,
+  introLength: 5,
   saltyVersion: 0x01,
   types: {
     message: 0x01
-  }
+  },
+  blockLength: 65535
 };
