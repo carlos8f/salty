@@ -6,7 +6,6 @@ crypto = require('crypto');
 rimraf = require('rimraf');
 request = require('request');
 through = require('through');
-BlockStream = require('block-stream');
 
 tmpDir = path.join(require('os').tmpDir(), require('idgen')());
 

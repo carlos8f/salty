@@ -3,8 +3,6 @@ var nacl = require('sodium').api
   , qr = require('qr-image')
   , base58 = require('base58-native').base58Check
   , through = require('through')
-  , combine = require('stream-combiner')
-  , BlockStream = require('block-stream')
 
 var salty = module.exports = {
   nacl: nacl,
@@ -110,17 +108,9 @@ salty.wallet = function (buf) {
     // encrypt a stream using a nonce+k pair (caution: does not hide length)
     peerStream: function (nonce, identity) {
       var k = this.secret(identity);
-      var blocks = new BlockStream(256, {nopad: true});
-      blocks.on('drain', function () {
-        var self = this;
-        setImmediate(function () {
-          self.flush();
-        });
-      });
-      var encdec = through(function write (buf) {
+      return through(function write (buf) {
         this.queue(salty.xor(buf, nonce, k));
       });
-      return combine(blocks, encdec);
     },
     // convert wallet to a QR code
     toImage: function (options) { return qr.image('salty:w-' + salty.encode(this.toBuffer(), options)) }
