@@ -5,6 +5,7 @@ var nacl = require('sodium').api
   , es = require('event-stream')
   , pemtools = require('pemtools')
   , BlockStream = require('block-stream')
+  , assert = require('assert')
 
 var salty = module.exports = {
   nacl: nacl,
@@ -122,46 +123,29 @@ salty.wallet = function (buf) {
     secret: function (identity) {
       return nacl.crypto_box_beforenm(salty.identity(identity).encryptPk, this.decryptSk);
     },
-    // encrypt a stream using a nonce+k pair (caution: does not hide length)
+    // encrypt a stream
     encryptStream: function (identity) {
       var k = this.secret(identity);
-      var bs = new BlockStream(salty.format.blockLength, {nopad: true});
-      var enc = es.through();
-      bs.on('data', function (buf) {
+      var bs = new BlockStream(salty.format.blockLength);
+      var out = es.through();
+      bs.on('data', function (buf, unpaddedLength) {
         var n = salty.nonce(nacl.crypto_stream_NONCEBYTES);
-        var len = Buffer(2);
-        len.writeUInt16BE(buf.length, 0);
-        enc.queue(len);
-        enc.queue(n);
-        var ctxt = salty.xor(buf, n, k);
-        enc.queue(ctxt);
-      });
-      bs.on('end', function () {
-        enc.end();
-      });
-      bs.on('drain', function () {
-        var self = this;
-        setImmediate(function () {
-          self.flush();
-        });
-      });
-      return es.duplex(bs, enc);
-    },
-    decryptStream: function (identity) {
-      var k = this.secret(identity);
-      var bs = new BlockStream(2 + nacl.crypto_stream_NONCEBYTES + salty.format.blockLength);
-      var dec = es.through();
-      bs.on('data', function (buf) {
+        var block = Buffer(salty.format.encryptedBlockLength());
         var idx = 0;
-        var len = buf.readUInt16BE(idx);
-        idx += 2;
-        var n = buf.slice(idx, idx + nacl.crypto_stream_NONCEBYTES);
-        idx += nacl.crypto_stream_NONCEBYTES;
-        var m = salty.xor(buf.slice(idx, idx + len), n, k);
-        dec.write(m);
+        n.copy(block, 0);
+        idx += n.length;
+        // pack the length with the padded encrypted message
+        var m = Buffer(2 + buf.length);
+        if (typeof unpaddedLength === 'undefined') unpaddedLength = buf.length;
+        m.writeUInt16BE(unpaddedLength, 0);
+        buf.copy(m, 2);
+        var ctxt = salty.xor(m, n, k);
+        console.log(ctxt);
+        ctxt.copy(block, idx);
+        out.write(block);
       });
       bs.on('end', function () {
-        dec.end();
+        out.end();
       });
       bs.on('drain', function () {
         var self = this;
@@ -169,7 +153,30 @@ salty.wallet = function (buf) {
           self.flush();
         });
       });
-      return es.duplex(bs, dec);
+      return es.pipeline(bs, out);
+    },
+    // decrypt a stream
+    decryptStream: function (identity) {
+      var bs = new BlockStream(salty.format.encryptedBlockLength(), {nopad: true});
+      bs.on('drain', function () {
+        var self = this;
+        setImmediate(function () {
+          self.flush();
+        });
+      });
+      var k = this.secret(identity);
+      var dec = es.through(function write (block) {
+        var idx = 0;
+        var n = block.slice(idx, nacl.crypto_stream_NONCEBYTES);
+        idx += nacl.crypto_stream_NONCEBYTES;
+        var ctxt = block.slice(idx);
+        console.log(ctxt);
+        var m = salty.xor(ctxt, n, k);
+        var len = m.readUInt16BE(0);
+        var buf = m.slice(2, len + 2);
+        this.queue(buf);
+      });
+      return es.pipeline(bs, dec);
     },
     writeFile: function (identity, headers) {
       // write the intro
@@ -292,5 +299,8 @@ salty.format = {
   types: {
     message: 0x01
   },
-  blockLength: 65535
+  blockLength: 65535,
+  encryptedBlockLength: function () {
+    return nacl.crypto_stream_NONCEBYTES + 4 + salty.format.blockLength;
+  }
 };
