@@ -126,22 +126,23 @@ salty.wallet = function (buf) {
     // encrypt a stream
     encryptStream: function (identity) {
       var k = this.secret(identity);
-      var bs = new BlockStream(salty.format.blockLength);
+      var bs = new BlockStream(salty.format.blockLength, {random: true});
       var out = es.through();
       bs.on('data', function (buf, unpaddedLength) {
         var n = salty.nonce(nacl.crypto_stream_NONCEBYTES);
         var block = Buffer(salty.format.encryptedBlockLength());
         var idx = 0;
-        n.copy(block, 0);
+        n.copy(block, idx);
         idx += n.length;
         // pack the length with the padded encrypted message
-        var m = Buffer(2 + buf.length);
+        var m = Buffer(4 + buf.length);
         if (typeof unpaddedLength === 'undefined') unpaddedLength = buf.length;
-        m.writeUInt16BE(unpaddedLength, 0);
-        buf.copy(m, 2);
+        m.writeUInt32BE(unpaddedLength, 0);
+        buf.copy(m, 4);
         var ctxt = salty.xor(m, n, k);
         console.log(ctxt);
         ctxt.copy(block, idx);
+        assert.equal(block.length, salty.format.encryptedBlockLength());
         out.write(block);
       });
       bs.on('end', function () {
@@ -157,7 +158,7 @@ salty.wallet = function (buf) {
     },
     // decrypt a stream
     decryptStream: function (identity) {
-      var bs = new BlockStream(salty.format.encryptedBlockLength(), {nopad: true});
+      var bs = new BlockStream(salty.format.encryptedBlockLength());
       bs.on('drain', function () {
         var self = this;
         setImmediate(function () {
@@ -166,14 +167,15 @@ salty.wallet = function (buf) {
       });
       var k = this.secret(identity);
       var dec = es.through(function write (block) {
+        assert.equal(block.length, salty.format.encryptedBlockLength());
         var idx = 0;
         var n = block.slice(idx, nacl.crypto_stream_NONCEBYTES);
-        idx += nacl.crypto_stream_NONCEBYTES;
+        idx += n.length;
         var ctxt = block.slice(idx);
         console.log(ctxt);
         var m = salty.xor(ctxt, n, k);
-        var len = m.readUInt16BE(0);
-        var buf = m.slice(2, len + 2);
+        var len = m.readUInt32BE(0);
+        var buf = m.slice(4, 4 + len);
         this.queue(buf);
       });
       return es.pipeline(bs, dec);
