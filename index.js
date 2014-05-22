@@ -124,6 +124,16 @@ salty.wallet = function (buf) {
       return nacl.crypto_box_beforenm(salty.identity(identity).encryptPk, this.decryptSk);
     },
     // encrypt a stream
+    // process:
+    // originator:
+    // generates tmp identity
+    // sends identity and half a nonce
+    // other side generates tmp identity
+    // sends identity and half a nonce
+    // the following is xor encrypted using full nonce and k
+    // originator sends real identity and half a nonce
+    // other side sends real identity and half a nonce
+    // real message is xor encrypted using real nonce and k
     encryptStream: function (identity) {
       var k = this.secret(identity);
       var bs = new BlockStream(salty.format.blockLength, {random: true});
