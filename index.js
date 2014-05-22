@@ -123,6 +123,9 @@ salty.wallet = function (buf) {
     secret: function (identity) {
       return nacl.crypto_box_beforenm(salty.identity(identity).encryptPk, this.decryptSk);
     },
+    // @todo: asynchronous and synchronous solutions
+    // synchronous can exchange tmp keys on the fly
+    // asynchronous, use pem? must have keys already exchanged? how does recipient know sender's identity?
     // encrypt a stream
     // process:
     // originator:
