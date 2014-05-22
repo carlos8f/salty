@@ -130,19 +130,13 @@ salty.wallet = function (buf) {
       var out = es.through();
       bs.on('data', function (buf, unpaddedLength) {
         var n = salty.nonce(nacl.crypto_stream_NONCEBYTES);
-        var block = Buffer(salty.format.encryptedBlockLength());
-        var idx = 0;
-        n.copy(block, idx);
-        idx += n.length;
-        // pack the length with the padded encrypted message
-        var m = Buffer(4 + buf.length);
-        if (typeof unpaddedLength === 'undefined') unpaddedLength = buf.length;
-        m.writeUInt32BE(unpaddedLength, 0);
-        buf.copy(m, 4);
+        console.log('enc n', n);
+        var len = Buffer(4);
+        len.writeUInt32BE(unpaddedLength, 0);
+        var m = pemtools.serialize([len, buf]);
         var ctxt = salty.xor(m, n, k);
-        console.log(ctxt);
-        ctxt.copy(block, idx);
-        assert.equal(block.length, salty.format.encryptedBlockLength());
+        var block = pemtools.serialize([n, ctxt]);
+        assert.equal(block.length, salty.format.packedBlockLength());
         out.write(block);
       });
       bs.on('end', function () {
@@ -158,27 +152,32 @@ salty.wallet = function (buf) {
     },
     // decrypt a stream
     decryptStream: function (identity) {
-      var bs = new BlockStream(salty.format.encryptedBlockLength());
-      bs.on('drain', function () {
-        var self = this;
-        setImmediate(function () {
-          self.flush();
-        });
+      var k = this.secret(identity)
+        , cursor = 0
+        , chunks = []
+
+      return es.through(function write (data) {
+        assert(data);
+        var bytesLeft = data.length;
+        while (bytesLeft) {
+          var copyBytes = Math.min(salty.format.packedBlockLength() - cursor, data.length);
+          chunks.push(data.slice(cursor, copyBytes));
+          cursor += copyBytes;
+          bytesLeft -= chunks[chunks.length - 1].length;
+          if (cursor === salty.format.packedBlockLength()) {
+            var block = pemtools.unserialize(Buffer.concat(chunks));
+            var n = block[0], ctxt = block[1];
+            console.log('dec n', n);
+            assert.equal(n.length, nacl.crypto_stream_NONCEBYTES);
+            var m = salty.xor(ctxt, n, k);
+            m = pemtools.unserialize(m);
+            var len = m[0], padded = m[1];
+            assert.equal(padded.length, salty.format.blockLength);
+            this.queue(padded.slice(0, len));
+            cursor = 0;
+          }
+        }
       });
-      var k = this.secret(identity);
-      var dec = es.through(function write (block) {
-        assert.equal(block.length, salty.format.encryptedBlockLength());
-        var idx = 0;
-        var n = block.slice(idx, nacl.crypto_stream_NONCEBYTES);
-        idx += n.length;
-        var ctxt = block.slice(idx);
-        console.log(ctxt);
-        var m = salty.xor(ctxt, n, k);
-        var len = m.readUInt32BE(0);
-        var buf = m.slice(4, 4 + len);
-        this.queue(buf);
-      });
-      return es.pipeline(bs, dec);
     },
     writeFile: function (identity, headers) {
       // write the intro
@@ -302,7 +301,7 @@ salty.format = {
     message: 0x01
   },
   blockLength: 65535,
-  encryptedBlockLength: function () {
-    return nacl.crypto_stream_NONCEBYTES + 4 + salty.format.blockLength;
+  packedBlockLength: function () {
+    return 20 + nacl.crypto_stream_NONCEBYTES + salty.format.blockLength;
   }
 };
