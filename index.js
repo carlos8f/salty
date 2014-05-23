@@ -143,15 +143,3 @@ salty.fromPEM = function (str, passphrase) {
   else if (pem.tag === 'SALTY WALLET') return salty.wallet(pem.toBuffer());
   else throw new Error('not a salty PEM');
 };
-salty.format = {
-  magicByte: 0x59,
-  introLength: 5,
-  saltyVersion: 0x01,
-  types: {
-    message: 0x01
-  },
-  blockLength: 65535,
-  packedBlockLength: function () {
-    return 20 + nacl.crypto_stream_NONCEBYTES + salty.format.blockLength;
-  }
-};
