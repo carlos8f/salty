@@ -140,13 +140,13 @@ describe('tests', function () {
   });
   it('alice encrypts stream for bob', function (done) {
     fs.createReadStream(p)
-      .pipe(alice.encryptStream(bob.identity))
+      .pipe(alice.peerStream(nonce, bob.identity))
       .pipe(fs.createWriteStream(p + '-encrypted'))
       .on('finish', done);
   });
   it('decrypt stream', function (done) {
     fs.createReadStream(p + '-encrypted')
-      .pipe(bob.decryptStream(alice.identity))
+      .pipe(bob.peerStream(nonce, alice.identity))
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
         assert.equal(data.toString('hex'), '2bce2ffc40e0d90afe577a76db5db4290c48ddf4');
