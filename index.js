@@ -4,7 +4,6 @@ var nacl = require('sodium').api
   , base58 = require('base58-native').base58Check
   , es = require('event-stream')
   , pemtools = require('pemtools')
-  , BlockStream = require('block-stream')
   , assert = require('assert')
 
 var salty = module.exports = {

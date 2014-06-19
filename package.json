@@ -9,8 +9,7 @@
     "event-stream": "^3.1.5",
     "qr-image": "^1.1.0",
     "sodium": "^1.0.11",
-    "pemtools": "git+https://gist.github.com/f0ab86a32d130c3634a3.git",
-    "block-stream": "git+https://github.com/carlos8f/block-stream.git"
+    "pemtools": "git+https://gist.github.com/f0ab86a32d130c3634a3.git"
   },
   "devDependencies": {
     "mocha": "*",
