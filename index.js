@@ -1,14 +1,14 @@
-var sodium = require('sodium')
-  , nacl = sodium.api
+var nacl = require('sodium').api
+  , asn1 = require('asn1.js')
   , qr = require('qr-image')
   , base58 = require('base58-native').base58Check
-  , through = require('through')
+  , es = require('event-stream')
   , pemtools = require('pemtools')
-  , mkdirp = require('mkdirp')
+  , BlockStream = require('block-stream')
   , assert = require('assert')
-  , path = require('path')
 
 var salty = module.exports = {
+  nacl: nacl,
   encode: base58.encode, // encode a buffer into a string
   decode: base58.decode, // decode a buffer from a string
   hash: function (buf) { // hash a buffer
@@ -22,6 +22,33 @@ var salty = module.exports = {
   },
   xor: nacl.crypto_stream_xor // scramble or unscramble a buffer using a nonce+k pair
 };
+salty.Identity = asn1.define('Identity', function () {
+  this.seq().obj(
+    this.key('verifyPk').octstr(),
+    this.key('encryptPk').octstr()
+  );
+});
+salty.Wallet = asn1.define('Wallet', function () {
+  this.seq().obj(
+    this.key('identity').use(salty.Identity),
+    this.key('signSk').octstr(),
+    this.key('decryptSk').octstr()
+  );
+});
+salty.Intro = asn1.define('Intro', function () {
+  this.seq().obj(
+    this.key('version').int(),
+    this.key('type').int(),
+    this.key('headerLength').int()
+  );
+});
+salty.Header = asn1.define('Header', function () {
+  this.seq().obj(
+    this.key('nonce').octstr(),
+    this.key('identity').use(salty.Identity),
+    this.key('headers').octstr()
+  );
+});
 // helper for making prototypes
 function makePrototype (methods) {
   var ret = {
@@ -41,18 +68,10 @@ function makePrototype (methods) {
 // hydrate an identity from a string/buffer, and/or add methods
 salty.identity = function (buf) {
   if (typeof buf === 'string') buf = salty.decode(buf);
-  if (!Buffer.isBuffer(buf)) throw new Error('salty identity requires a publicKey buffer or string');
-  var parts = pemtools.unserialize(buf);
-  var identity = {
-    encryptPk: parts[0],
-    verifyPk: parts[1],
-    buf: buf
-  };
-  assert.equal(identity.encryptPk.length, nacl.crypto_box_PUBLICKEYBYTES);
-  assert.equal(identity.verifyPk.length, nacl.crypto_sign_PUBLICKEYBYTES);
+  var identity = Buffer.isBuffer(buf) ? salty.Identity.decode(buf, 'der') : buf || {};
   identity.__proto__ = makePrototype({
     // convert identity to a buffer
-    toBuffer: function () { return this.buf },
+    toBuffer: function () { return salty.Identity.encode(this, 'der') },
     // convert identity to a QR code
     toImage: function (options) { return qr.image('salty:i-' + salty.encode(this.toBuffer(), options)) },
     // verify a signature
@@ -66,53 +85,61 @@ salty.identity = function (buf) {
   });
   return identity;
 };
-salty.createWallet = function (p) {
-  mkdirp.sync(p);
-  var wallet = {
-    decryptSk: new sodium.KeyRing(),
-    signSk: new sodium.KeyRing()
-  };
-  var encryptPk = wallet.decryptSk.createKeyPair('curve25519', path.join(p, 'curve25519'));
-  var verifyPk = wallet.signSk.createKeyPair('ed25519', path.join(p, 'ed25519'));
-  var publicBuffers = [
-    Buffer(encryptPk.publicKey, 'hex'),
-    Buffer(verifyPk.publicKey, 'hex')
-  ];
-  wallet.identity = salty.identity(pemtools.serialize(publicBuffers));
+// create a new wallet or hydrate it from a string/buffer
+salty.wallet = function (buf) {
+  if (typeof buf === 'string') buf = salty.decode(buf);
+  var wallet = Buffer.isBuffer(buf) ? salty.Wallet.decode(buf, 'der') : buf;
+  if (!buf) {
+    var boxKey = nacl.crypto_box_keypair();
+    var signKey = nacl.crypto_sign_keypair();
+    wallet = {
+      decryptSk: boxKey.secretKey,
+      signSk: signKey.secretKey,
+      identity: { encryptPk: boxKey.publicKey, verifyPk: signKey.publicKey }
+    };
+  }
+  wallet.identity = salty.identity(wallet.identity);
   wallet.__proto__ = makePrototype({
+    // convert wallet to a buffer
+    toBuffer: function () { return salty.Wallet.encode(this, 'der') },
     // sign a buffer, optionally detaching the signature
     sign: function (buf, detach) {
-      var signed = wallet.signSk.sign(buf);
+      var signed = nacl.crypto_sign(buf, this.signSk);
       if (detach) return signed.slice(0, nacl.crypto_sign_BYTES);
       return signed;
     },
     // encrypt a buffer for identity
-    encrypt: function (buf, identity, nonce) {
-      nonce || (nonce = salty.nonce());
-      var enc = wallet.decryptSk.encrypt(buf, salty.identity(identity).encryptPk, nonce);
-      return pemtools.serialize([nonce, enc]);
+    encrypt: function (buf, identity) {
+      var nonce = salty.nonce();
+      var enc = nacl.crypto_box(buf, nonce, salty.identity(identity).encryptPk, this.decryptSk);
+      return Buffer.concat([nonce, enc]);
     },
     // decrypt a buffer from identity
     decrypt: function (buf, identity) {
-      var parts = pemtools.unserialize(buf);
-      return wallet.decryptSk.decrypt(parts[1], salty.identity(identity).encryptPk, parts[0]);
+      var cursor = 0, nonce = buf.slice(cursor, cursor += nacl.crypto_box_NONCEBYTES);
+      return nacl.crypto_box_open(buf.slice(cursor), nonce, salty.identity(identity).encryptPk, this.decryptSk);
     },
     // compute the shared secret
     secret: function (identity) {
-      return wallet.decryptSk.agree(salty.identity(identity).encryptPk);
+      return nacl.crypto_box_beforenm(salty.identity(identity).encryptPk, this.decryptSk);
     },
     peerStream: function (nonce, identity) {
       var k = this.secret(identity);
       return es.through(function write (data) {
         this.queue(salty.xor(data, nonce, k));
       });
+    },
+    // convert wallet to a QR code
+    toImage: function (options) { return qr.image('salty:w-' + salty.encode(this.toBuffer(), options)) },
+    toPEM: function (passphrase) {
+      return pemtools(this.toBuffer(), 'SALTY WALLET', passphrase).toString();
     }
   });
   return wallet;
 };
-// @todo: load wallet
 salty.fromPEM = function (str, passphrase) {
   var pem = pemtools(str, null, passphrase);
   if (pem.tag === 'SALTY IDENTITY') return salty.identity(pem.toBuffer());
+  else if (pem.tag === 'SALTY WALLET') return salty.wallet(pem.toBuffer());
   else throw new Error('not a salty PEM');
 };

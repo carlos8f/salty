@@ -5,7 +5,6 @@ path = require('path');
 crypto = require('crypto');
 rimraf = require('rimraf');
 request = require('request');
-nacl = require('sodium').api;
 
 tmpDir = path.join(require('os').tmpDir(), require('idgen')());
 
@@ -43,7 +42,7 @@ describe('tests', function () {
 
   it('nonce', function () {
     nonce = salty.nonce();
-    assert.equal(nonce.length, nacl.crypto_box_NONCEBYTES);
+    assert.equal(nonce.length, salty.nacl.crypto_box_NONCEBYTES);
   });
 
   it('alice and bob', function () {
@@ -55,7 +54,7 @@ describe('tests', function () {
     var k1 = bob.secret(alice.identity);
     var k2 = alice.secret(bob.identity);
     assert.deepEqual(k1, k2);
-    assert.equal(k1.length, nacl.crypto_box_BEFORENMBYTES);
+    assert.equal(k1.length, salty.nacl.crypto_box_BEFORENMBYTES);
   });
 
   it('valid message', function () {
@@ -79,7 +78,7 @@ describe('tests', function () {
 
   it('alice creates a detached sig', function () {
     var signed = alice.sign(m, true);
-    assert.equal(signed.length, nacl.crypto_sign_BYTES);
+    assert.equal(signed.length, require('sodium').api.crypto_sign_BYTES);
     var orig = alice.identity.verify(signed, m);
     assert.deepEqual(orig, m);
   });
