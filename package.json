@@ -12,7 +12,7 @@
     "sodium": "^1.0.11",
     "pemtools": "git+https://gist.github.com/f0ab86a32d130c3634a3.git",
     "commander": "^2.2.0",
-    "modeler-leveldb-crypto": "https://gist.github.com/073b709b38c96d88ffa6.git"
+    "modeler-leveldb-crypto": "git+https://gist.github.com/073b709b38c96d88ffa6.git"
   },
   "devDependencies": {
     "mocha": "*",
