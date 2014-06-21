@@ -1,0 +1,5 @@
+id: salty
+plugins: server.js
+collections: "*_collection.js"
+controllers: "*_controller.js"
+password: true
