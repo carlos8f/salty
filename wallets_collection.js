@@ -11,13 +11,22 @@ module.exports = function (app) {
       });
     },
     save: function (wallet, cb) {
-      cb(null, {
-        data: wallet.toString()
-      });
+      wallet = {
+        id: wallet.id,
+        rev: wallet.rev,
+        created: wallet.created,
+        updated: wallet.updated,
+        wallet: salty.wallet(wallet).toString()
+      };
+      cb(null, wallet);
     },
     load: function (wallet, cb) {
-      console.error('wallet', wallet);
-      cb(null, salty.wallet(wallet));
+      var w = salty.wallet(wallet.wallet);
+      Object.keys(w).forEach(function (k) {
+        wallet[k] = w[k];
+      });
+      delete wallet.wallet;
+      cb(null, wallet);
     }
   });
 };

@@ -8,9 +8,13 @@ var nacl = require('sodium').api
 
 var salty = module.exports = {
   nacl: nacl,
-  encode: JSON.stringify, // encode a buffer into a string
-  decode: JSON.parse, // decode a buffer from a string
-  hash: function (buf) { // hash a buffer
+  encode: function (buf) {
+    return buf.toString('base64');
+  },
+  decode: function (str) {
+    return Buffer(str, 'base64');
+  },
+  hash: function (buf) {
     if (typeof buf === 'string') buf = Buffer(buf);
     return nacl.crypto_hash_sha256(nacl.crypto_hash_sha256(buf));
   },
@@ -54,7 +58,8 @@ function makePrototype (methods) {
     toJSON: function () {
       var ret = {}, self = this;
       Object.keys(self).forEach(function (k) {
-        if (Buffer.isBuffer(self[k])) ret[k] = salty.encode(self[k])
+        if (Buffer.isBuffer(self[k])) ret[k] = salty.encode(self[k]);
+        else if (self[k].toJSON) ret[k] = self[k].toJSON();
         else ret[k] = self[k];
       });
       return ret;
@@ -92,9 +97,9 @@ salty.wallet = function (buf) {
     var boxKey = nacl.crypto_box_keypair();
     var signKey = nacl.crypto_sign_keypair();
     wallet = {
-      decryptSk: boxKey.secretKey,
-      signSk: signKey.secretKey,
-      identity: { encryptPk: boxKey.publicKey, verifyPk: signKey.publicKey }
+      decryptSk: Buffer(boxKey.secretKey),
+      signSk: Buffer(signKey.secretKey),
+      identity: { encryptPk: Buffer(boxKey.publicKey), verifyPk: Buffer(signKey.publicKey) }
     };
   }
   wallet.identity = salty.identity(wallet.identity);
