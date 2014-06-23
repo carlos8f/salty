@@ -10,7 +10,13 @@ module.exports = function (app) {
         wallet[k] = w[k];
       });
     },
+    save: function (wallet, cb) {
+      cb(null, {
+        data: wallet.toString()
+      });
+    },
     load: function (wallet, cb) {
+      console.error('wallet', wallet);
       cb(null, salty.wallet(wallet));
     }
   });

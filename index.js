@@ -8,8 +8,8 @@ var nacl = require('sodium').api
 
 var salty = module.exports = {
   nacl: nacl,
-  encode: base58.encode, // encode a buffer into a string
-  decode: base58.decode, // decode a buffer from a string
+  encode: JSON.stringify, // encode a buffer into a string
+  decode: JSON.parse, // decode a buffer from a string
   hash: function (buf) { // hash a buffer
     if (typeof buf === 'string') buf = Buffer(buf);
     return nacl.crypto_hash_sha256(nacl.crypto_hash_sha256(buf));
