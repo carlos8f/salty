@@ -6,11 +6,12 @@
   "dependencies": {
     "asn1.js": "^0.3.0",
     "base58-native": "^0.1.3",
+    "bignum": "^0.7.0",
+    "commander": "^2.2.0",
     "event-stream": "^3.1.5",
-    "qr-image": "^1.1.0",
-    "sodium": "^1.0.11",
     "pemtools": "git+https://gist.github.com/f0ab86a32d130c3634a3.git",
-    "commander": "^2.2.0"
+    "qr-image": "^1.1.0",
+    "sodium": "^1.0.11"
   },
   "devDependencies": {
     "mocha": "*",

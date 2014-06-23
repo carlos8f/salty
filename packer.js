@@ -1,19 +1,20 @@
 var es = require('event-stream')
   , net = require('net')
+  , salty = require('./')
+  , bignum = require('bignum')
 
-function writer () {
-  return es.through(function write (data) {
-    var len = Buffer(4);
-    if (typeof data === 'string') data = Buffer(data);
-    len.writeUInt32BE(data.length, 0);
-    this.queue(len);
-    this.queue(data);
-  });
+// write length-prefixed buffer to a stream
+function writeStream (stream, buf) {
+  var len = Buffer(4);
+  len.writeUInt32BE(buf.length, 0);
+  stream.write(len);
+  stream.write(buf);
 };
 
-function reader () {
+// read length-prefixed buffers from a stream
+function readStream (stream, cb) {
   var charsLeft = null, chars = [];
-  return es.through(function write (data) {
+  stream.on('data', function read (data) {
     var dataLen = data.length;
     for (var idx = 0; idx < dataLen; idx++) {
       chars.push(data[idx]);
@@ -22,7 +23,9 @@ function reader () {
         chars = [];
       }
       if (chars.length === charsLeft) {
-        this.emit('data', Buffer(chars));
+        cb(Buffer(chars), function () {
+          stream.removeListener('data', read);
+        });
         charsLeft = null;
         chars = [];
       }
@@ -30,24 +33,55 @@ function reader () {
   });
 };
 
+// perform client's side of the handshake
 exports.createClient = function (port, cb) {
   var socket = net.connect({port: port}, function () {
-    cb(dup);
+    var wallet = salty.wallet();
+    var cnonce = salty.nonce();
+    writeStream(socket, wallet.identity.toBuffer());
+    writeStream(socket, cnonce);
+    var latch = 2, sid, snonce;
+    readStream(socket, function (data, unlisten) {
+      if (!sid) sid = data;
+      else if (!snonce) snonce = data;
+      if (!--latch) {
+        unlisten();
+        var nonce = bignum.fromBuffer(cnonce)
+          .xor(bignum.fromBuffer(snonce))
+          .toBuffer();
+        var pe = wallet.peerStream(nonce, sid);
+        var pd = wallet.peerStream(nonce, sid);
+        pe.pipe(socket);
+        socket.pipe(pd);
+        cb(es.duplex(pe, pd));
+      }
+    });
   });
-  var w = writer();
-  w.pipe(socket);
-  var r = reader();
-  socket.pipe(r);
-  var dup = es.duplex(w, r);
-  return dup;
 };
 
+// perform server's side of the handshake
 exports.createServer = function (port, cb) {
+  var wallet = salty.wallet();
   return net.createServer(function (socket) {
-    var r = reader();
-    socket.pipe(r);
-    var w = writer();
-    w.pipe(socket);
-    cb(es.duplex(w, r));
+    var snonce = salty.nonce();
+    var latch = 2, cid, cnonce;
+    readStream(socket, function (data, unlisten) {
+      if (!cid) cid = data;
+      else if (!cnonce) cnonce = data;
+      if (!--latch) {
+        unlisten();
+        var nonce = bignum.fromBuffer(cnonce)
+          .xor(bignum.fromBuffer(snonce))
+          .toBuffer();
+        writeStream(socket, wallet.identity.toBuffer());
+        writeStream(socket, snonce);
+        var pe = wallet.peerStream(nonce, cid);
+        var pd = wallet.peerStream(nonce, cid);
+        pe.pipe(socket);
+        socket.pipe(pd);
+        var dup = es.duplex(pe, pd);
+        cb(dup);
+      }
+    });
   }).listen(port);
 };
