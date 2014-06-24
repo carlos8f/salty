@@ -34,10 +34,18 @@ function readStream (stream, cb) {
 };
 
 // perform client's side of the handshake
-exports.createClient = function (port, cb) {
-  var socket = net.connect({port: port}, function () {
-    var wallet = salty.wallet();
-    var cnonce = salty.nonce();
+exports.connect = exports.createConnection = function (options, cb) {
+  if (typeof options === 'function') {
+    cb = options;
+    options = {};
+  }
+  options || (options = {});
+  if (typeof options === 'string' || typeof options === 'number') {
+    options = {port: options};
+  }
+  var wallet = salty.wallet(options.wallet);
+  var cnonce = salty.nonce();
+  var socket = net.connect(options, function () {
     writeStream(socket, wallet.identity.toBuffer());
     writeStream(socket, cnonce);
     var latch = 2, sid, snonce;
@@ -46,22 +54,37 @@ exports.createClient = function (port, cb) {
       else if (!snonce) snonce = data;
       if (!--latch) {
         unlisten();
-        var nonce = bignum.fromBuffer(cnonce)
+        if (options.accept) {
+          options.accept(salty.identity(sid), function (accept) {
+            if (accept) handshake();
+            else socket.destroy();
+          });
+        }
+        else handshake();
+
+        function handshake () {
+          var nonce = bignum.fromBuffer(cnonce)
           .xor(bignum.fromBuffer(snonce))
           .toBuffer();
-        var pe = wallet.peerStream(nonce, sid);
-        var pd = wallet.peerStream(nonce, sid);
-        pe.pipe(socket);
-        socket.pipe(pd);
-        cb(es.duplex(pe, pd));
+          var pe = wallet.peerStream(nonce, sid);
+          var pd = wallet.peerStream(nonce, sid);
+          pe.pipe(socket);
+          socket.pipe(pd);
+          cb(es.duplex(pe, pd), salty.identity(sid), nonce);
+        }
       }
     });
   });
 };
 
 // perform server's side of the handshake
-exports.createServer = function (port, cb) {
-  var wallet = salty.wallet();
+exports.createServer = function (options, cb) {
+  if (typeof options === 'function') {
+    cb = options;
+    options = {};
+  }
+  options || (options = {});
+  var wallet = salty.wallet(options.wallet);
   return net.createServer(function (socket) {
     var snonce = salty.nonce();
     var latch = 2, cid, cnonce;
@@ -83,5 +106,5 @@ exports.createServer = function (port, cb) {
         cb(dup);
       }
     });
-  }).listen(port);
+  });
 };
