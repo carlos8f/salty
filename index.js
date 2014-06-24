@@ -147,3 +147,4 @@ salty.fromPEM = function (str, passphrase) {
   else if (pem.tag === 'SALTY WALLET') return salty.wallet(pem.toBuffer());
   else throw new Error('not a salty PEM');
 };
+salty.net = require('./net');

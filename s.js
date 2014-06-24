@@ -1,8 +1,7 @@
 var salty = require('./')
-  , packer = require('./packer')
   , wallet = salty.wallet()
 
-packer.createServer(function (socket) {
+salty.net.createServer(function (socket) {
   socket.on('data', function (data) {
     console.error('server was talked to', data.toString());
   });
