@@ -45,6 +45,8 @@ exports.connect = exports.createConnection = function (options, cb) {
   }
   var wallet = salty.wallet(options.wallet);
   var cnonce = salty.nonce();
+  var proxy = es.through();
+  if (cb) proxy.once('connect', cb);
   var socket = net.connect(options, function () {
     writeStream(socket, wallet.identity.toBuffer());
     writeStream(socket, cnonce);
@@ -64,17 +66,18 @@ exports.connect = exports.createConnection = function (options, cb) {
 
         function handshake () {
           var nonce = bignum.fromBuffer(cnonce)
-          .xor(bignum.fromBuffer(snonce))
-          .toBuffer();
-          var pe = wallet.peerStream(nonce, sid);
-          var pd = wallet.peerStream(nonce, sid);
-          pe.pipe(socket);
-          socket.pipe(pd);
-          cb(es.duplex(pe, pd), salty.identity(sid), nonce);
+            .xor(bignum.fromBuffer(snonce))
+            .toBuffer();
+          // outgoing encryption
+          proxy.pipe(wallet.peerStream(nonce, sid)).pipe(socket);
+          // incoming decryption
+          socket.pipe(wallet.peerStream(nonce, sid)).pipe(proxy);
+          proxy.emit('connect', proxy, salty.identity(sid), nonce);
         }
       }
     });
   });
+  return proxy;
 };
 
 // perform server's side of the handshake

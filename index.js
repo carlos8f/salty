@@ -148,3 +148,4 @@ salty.fromPEM = function (str, passphrase) {
   else throw new Error('not a salty PEM');
 };
 salty.net = require('./net');
+salty.http = require('./http');
