@@ -45,8 +45,9 @@ exports.connect = exports.createConnection = function (options, cb) {
   }
   var wallet = salty.wallet(options.wallet);
   var cnonce = salty.nonce();
-  var proxy = es.through();
-  if (cb) proxy.once('connect', cb);
+  var input = es.through();
+  var output = es.through();
+  var proxy = es.duplex(input, output);
   var socket = net.connect(options, function () {
     writeStream(socket, wallet.identity.toBuffer());
     writeStream(socket, cnonce);
@@ -68,11 +69,9 @@ exports.connect = exports.createConnection = function (options, cb) {
           var nonce = bignum.fromBuffer(cnonce)
             .xor(bignum.fromBuffer(snonce))
             .toBuffer();
-          // outgoing encryption
-          proxy.pipe(wallet.peerStream(nonce, sid)).pipe(socket);
-          // incoming decryption
-          socket.pipe(wallet.peerStream(nonce, sid)).pipe(proxy);
-          proxy.emit('connect', proxy, salty.identity(sid), nonce);
+          input.pipe(wallet.peerStream(nonce, sid)).pipe(socket);
+          socket.pipe(wallet.peerStream(nonce, sid)).pipe(output);
+          cb && cb(proxy, salty.identity(sid), nonce);
         }
       }
     });
