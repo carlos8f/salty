@@ -1,0 +1,202 @@
+diff --git a/http.js b/http.js
+index 796324e..948d5d2 100644
+--- a/http.js
++++ b/http.js
+@@ -10,7 +10,8 @@ exports.createServer = function (options, cb) {
+   }
+   options || (options = {});
+   var server = salty.net.createServer(options, function (socket) {
+-    console.error('socket', socket);
++    socket.on('data', console.log);
++    console.log('got socket', socket);
+     parsley(socket, function (req) {
+       console.error('req', req);
+       var res = new http.ServerResponse(req);
+@@ -46,8 +47,9 @@ function Agent(options) {
+       opts[k] = options[k];
+     });
+ 
+-    console.error('opts', opts);
+-    return salty.net.connect(opts);
++    var socket = salty.net.connect(opts);
++    socket.on('data', console.error);
++    return socket;
+   }
+ }
+ inherits(Agent, http.Agent);
+diff --git a/net.js b/net.js
+index c107cf1..35c2fc4 100644
+--- a/net.js
++++ b/net.js
+@@ -71,6 +71,7 @@ exports.connect = exports.createConnection = function (options, cb) {
+             .toBuffer();
+           input.pipe(wallet.peerStream(nonce, sid)).pipe(socket);
+           socket.pipe(wallet.peerStream(nonce, sid)).pipe(output);
++          socket.on('data', console.log);
+           cb && cb(proxy, salty.identity(sid), nonce);
+         }
+       }
+@@ -104,6 +105,7 @@ exports.createServer = function (options, cb) {
+         var pd = wallet.peerStream(nonce, cid);
+         pe.pipe(socket);
+         socket.pipe(pd);
++        socket.on('data', console.log);
+         var dup = es.duplex(pe, pd);
+         cb(dup);
+       }
+diff --git a/proxy.js b/proxy.js
+index 1c202af..f14b322 100644
+--- a/proxy.js
++++ b/proxy.js
+@@ -1,11 +1,133 @@
+-var salty = require('./')
++var es = require('event-stream')
++  , bignum = require('bignum')
++  , salty = require('./')
+   , request = require('request')
+   , http = require('http')
+   , net = require('net')
+   , url = require('url')
+ 
+-/*
+-// Create an HTTP tunneling proxy
++// write length-prefixed buffer to a stream
++function writeStream (stream, buf) {
++  var len = Buffer(4);
++  len.writeUInt32BE(buf.length, 0);
++  stream.write(len);
++  stream.write(buf);
++};
++
++// read length-prefixed buffers from a stream
++function readStream (stream, cb) {
++  var charsLeft = null, chars = [];
++  stream.on('data', function read (data) {
++    var dataLen = data.length;
++    for (var idx = 0; idx < dataLen; idx++) {
++      chars.push(data[idx]);
++      if (charsLeft === null && chars.length === 4) {
++        charsLeft = Buffer(chars).readUInt32BE(0);
++        chars = [];
++      }
++      if (chars.length === charsLeft) {
++        cb(Buffer(chars), function () {
++          stream.removeListener('data', read);
++        });
++        charsLeft = null;
++        chars = [];
++      }
++    }
++  });
++};
++
++module.exports = function (app) {
++  // create a server whose sole purpose is to encrypt traffic between another server.
++  var proxy = http.createServer(function (req, res) {
++    res.writeHead(200, {'Content-Type': 'text/plain'});
++    res.end('okay');
++  });
++  proxy.on('connect', function (req, cltSocket, head) {
++    // create ephemeral keypair and half of a nonce
++    var wallet = salty.wallet();
++    var cnonce = salty.nonce();
++    // client determines where we're connecting
++    var srvUrl = url.parse('http://' + req.url);
++    // create the socket
++    var srvSocket = net.connect(srvUrl.port, srvUrl.hostname, function() {
++      // send our half of the handshake
++      writeStream(srvSocket, wallet.identity.toBuffer());
++      writeStream(srvSocket, cnonce);
++      var latch = 2, sid, snonce;
++      // listen for server's side of handshake
++      // todo: timeout
++      readStream(srvSocket, function (data, unlisten) {
++        if (!sid) {
++          sid = data;
++          // todo: validate identity
++        }
++        else if (!snonce) {
++          snonce = data;
++          if (snonce.length !== cnonce.length) {
++            // todo: validate nonce
++          }
++          // generate a shared nonce by XORing client and server nonces.
++          var nonce = bignum.fromBuffer(cnonce)
++            .xor(bignum.fromBuffer(snonce))
++            .toBuffer();
++        }
++        if (!--latch) {
++          // finish listening for handshake
++          unlisten();
++          // server is going to send encrypted traffic from here on (and expect
++          // encrypted traffic. create a duplex plaintext interface to the encrypted stream.
++          var enc = wallet.peerStream(nonce, sid);
++          cltSocket.pipe(enc);
++          enc.pipe(srvSocket);
++          var dec = wallet.peerStream(nonce, sid);
++          srvSocket.pipe(dec);
++          dec.pipe(cltSocket);
++          // send the first packet.
++          srvSocket.write(head);
++          // tell the client we've established a socket
++          var resp = 'HTTP/1.1 200 Connection Established\r\n' +
++            'Proxy-Agent: salty/' + require('./package.json').version + '\r\n' +
++            '\r\n';
++          cltSocket.write(resp);
++        }
++      });
++    });
++  });
++  return proxy;
++};
++
++  
++  var socket = net.connect(options, function () {
++    writeStream(socket, wallet.identity.toBuffer());
++    writeStream(socket, cnonce);
++    var latch = 2, sid, snonce;
++    readStream(socket, function (data, unlisten) {
++      if (!sid) sid = data;
++      else if (!snonce) snonce = data;
++      if (!--latch) {
++        unlisten();
++        if (options.accept) {
++          options.accept(salty.identity(sid), function (accept) {
++            if (accept) handshake();
++            else socket.destroy();
++          });
++        }
++        else handshake();
++
++        function handshake () {
++          var nonce = bignum.fromBuffer(cnonce)
++            .xor(bignum.fromBuffer(snonce))
++            .toBuffer();
++          input.pipe(wallet.peerStream(nonce, sid)).pipe(socket);
++          socket.pipe(wallet.peerStream(nonce, sid)).pipe(output);
++          socket.on('data', console.log);
++          cb && cb(proxy, salty.identity(sid), nonce);
++        }
++      }
++    });
++  });
++};
++
+ var proxy = http.createServer(function (req, res) {
+   res.writeHead(200, {'Content-Type': 'text/plain'});
+   res.end('okay');
+@@ -16,12 +138,11 @@ proxy.on('connect', function (req, cltSocket, head) {
+ 
+   var srvSocket = net.connect(srvUrl.port, srvUrl.hostname, function() {
+     var resp = 'HTTP/1.1 200 Connection Established\r\n' +
+-      'Proxy-Agent: saltyd\r\n' +
++      'Proxy-Agent: salty/' + require('./package.json').version + '\r\n' +
+       '\r\n';
+     cltSocket.write(resp);
+ 
+-    var wallet = salty.wallet();
+-    var nonce = salty.nonce();
++    
+ 
+     srvSocket.write(head);
+     //srvSocket.pipe(wallet.peerStream(nonce, ))
