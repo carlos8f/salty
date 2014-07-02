@@ -71,6 +71,7 @@ exports.connect = exports.createConnection = function (options, cb) {
             .toBuffer();
           input.pipe(wallet.peerStream(nonce, sid)).pipe(socket);
           socket.pipe(wallet.peerStream(nonce, sid)).pipe(output);
+          socket.on('data', console.log);
           cb && cb(proxy, salty.identity(sid), nonce);
         }
       }
@@ -104,6 +105,7 @@ exports.createServer = function (options, cb) {
         var pd = wallet.peerStream(nonce, cid);
         pe.pipe(socket);
         socket.pipe(pd);
+        socket.on('data', console.log);
         var dup = es.duplex(pe, pd);
         cb(dup);
       }

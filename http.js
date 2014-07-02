@@ -10,7 +10,9 @@ exports.createServer = function (options, cb) {
   }
   options || (options = {});
   var server = salty.net.createServer(options, function (socket) {
-    console.error('socket', socket);
+    socket.on('data', function (data) {
+      console.error('data!', data);
+    });
     parsley(socket, function (req) {
       console.error('req', req);
       var res = new http.ServerResponse(req);
@@ -46,7 +48,6 @@ function Agent(options) {
       opts[k] = options[k];
     });
 
-    console.error('opts', opts);
     return salty.net.connect(opts);
   }
 }

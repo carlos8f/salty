@@ -1,7 +1,7 @@
-var salty = require('./')
+var http = require('http')
   , middler = require('middler')
 
-var server = salty.http.createServer();
+var server = http.createServer();
 middler(server)
   .add(function (req, res, next) {
     console.error(req.method, req.url);
@@ -9,4 +9,3 @@ middler(server)
   })
 
 server.listen(8000);
-server.on('request', console.log);

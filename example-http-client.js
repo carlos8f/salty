@@ -1,7 +1,10 @@
-var salty = require('./')
-  , middler = require('middler')
-  , request = require('request')
+var request = require('request')
+  , tunnel = require('tunnel')
+  , assert = require('assert')
 
-var agent = new salty.http.Agent();
+var agent = tunnel.httpOverHttp({proxy: { port: 8001 } });
 
-request('http://localhost:8000', {agent: agent}).pipe(process.stdout);
+request({uri: 'http://localhost/localhost:8000/hey/guys', agent: agent}, function (err, resp, body) {
+  assert.ifError(err);
+  console.log(body);
+});
