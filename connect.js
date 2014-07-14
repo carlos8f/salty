@@ -2,50 +2,50 @@ var http = require('http');
 var net = require('net');
 var url = require('url');
 var request = require('request');
-var tunnel = require('tunnel');
-
-// Create an HTTP tunneling proxy
+var href = require('href');
+var httpProxy = require('http-proxy').createProxyServer();
+function onReqError (err, req, res) {
+  // Connection resets, if coming from the client, are not log-worthy.
+  if (err.code !== 'ECONNRESET') {
+    console.error(new Date(), '#error', err, req.method, req.url);
+  }
+  // WebSockets have no res
+  if (res && !res.headersSent) {
+    res.writeHead(500, {'content-type': 'text/plain'});
+    res.end('There was an error handling your request. Please try again later.');
+  }
+}
 var proxy = http.createServer(function (req, res) {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
-  res.end('okay');
+  href(req, res, function () {
+    var target = url.format(req.href);
+    console.log('HTTP', target);
+    httpProxy.web(req, res, {target: target }, onReqError);
+  });
 });
-proxy.on('connect', function(req, cltSocket, head) {
+proxy.on('upgrade', function (req, socket, head) {
+  httpProxy.ws(req, socket, head, function (err, req, socket) {
+    onReqError(err, req);
+    socket.destroy();
+  });
+});
+proxy.on('connect', function (req, cltSocket, head) {
   // connect to an origin server
+  cltSocket.on('error', function (err) {
+    onReqError(err, req);
+  });
   var srvUrl = url.parse('http://' + req.url);
   var srvSocket = net.connect(srvUrl.port, srvUrl.hostname, function() {
     cltSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                     'Proxy-agent: Node-Proxy\r\n' +
                     '\r\n');
+    console.log('HTTPS', req.url);
     srvSocket.write(head);
     srvSocket.pipe(cltSocket);
     cltSocket.pipe(srvSocket);
   });
-});
-
-var agent = tunnel.httpOverHttp({
-  proxy: {
-    port: 1337
-  }
-});
-
-// now that proxy is running
-proxy.listen(1337, '127.0.0.1', function() {
-  // make a request to a tunneling proxy
-
-  var options = {
-    host: 'www.google.com',
-    agent: agent
-  };
-
-  var req = http.request(options);
-  req.end();
-
-  req.on('response', function (res) {
-    console.log('got connected!');
-    res.setEncoding('utf8');
-    res.on('data', console.log);
-    res.on('end', function () {
-      proxy.close();
-    });
+  srvSocket.on('error', function (err) {
+    onReqError(err, req);
   });
 });
+
+proxy.listen(8001, '127.0.0.1');

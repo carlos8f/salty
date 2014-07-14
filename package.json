@@ -9,6 +9,8 @@
     "bignum": "^0.7.0",
     "commander": "^2.2.0",
     "event-stream": "^3.1.5",
+    "href": "^0.1.1",
+    "http-proxy": "^1.1.5",
     "parsley": "^0.1.0",
     "pemtools": "git+https://gist.github.com/f0ab86a32d130c3634a3.git",
     "qr-image": "^1.1.0",
