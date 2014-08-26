@@ -61,7 +61,7 @@ salty.identity = function (buf) {
       return nacl.crypto_sign_open(sig, this.verifyPk);
     },
     toPEM: function (passphrase) {
-      return pemtools(this.toBuffer(), 'SALTY IDENTITY', passphrase).toString();
+      return pemtools(this.toBuffer(), 'SALTY PUBLIC KEY', passphrase).toString();
     }
   });
   return identity;
@@ -111,14 +111,14 @@ salty.wallet = function (buf) {
       });
     },
     toPEM: function (passphrase) {
-      return pemtools(this.toBuffer(), 'SALTY WALLET', passphrase).toString();
+      return pemtools(this.toBuffer(), 'SALTY PRIVATE KEY', passphrase).toString();
     }
   });
   return wallet;
 };
 salty.fromPEM = function (str, passphrase) {
   var pem = pemtools(str, null, passphrase);
-  if (pem.tag === 'SALTY IDENTITY') return salty.identity(pem.toBuffer());
-  else if (pem.tag === 'SALTY WALLET') return salty.wallet(pem.toBuffer());
+  if (pem.tag === 'SALTY PUBLIC KEY') return salty.identity(pem.toBuffer());
+  else if (pem.tag === 'SALTY PRIVATE KEY') return salty.wallet(pem.toBuffer());
   else throw new Error('not a salty PEM');
 };
