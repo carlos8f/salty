@@ -3,8 +3,10 @@
   "version": "0.3.0",
   "description": "A tiny crypto toolkit for working with NaCl/sodium",
   "main": "index.js",
+  "bin": "cli.js",
   "dependencies": {
     "asn1.js": "^0.3.0",
+    "commander": "^2.3.0",
     "event-stream": "^3.1.5",
     "pemtools": "^0.4.0",
     "sodium": "^1.0.11"
