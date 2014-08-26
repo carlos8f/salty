@@ -1,6 +1,0 @@
-id: salty
-plugins: server.js
-collections: "*_collection.js"
-controllers: "*_controller.js"
-port: 3000
-views: "{*.hbs,*.md}"

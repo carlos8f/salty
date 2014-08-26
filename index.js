@@ -1,10 +1,7 @@
 var nacl = require('sodium').api
   , asn1 = require('asn1.js')
-  , qr = require('qr-image')
-  , base58 = require('base58-native').base58Check
   , es = require('event-stream')
   , pemtools = require('pemtools')
-  , assert = require('assert')
 
 var salty = module.exports = {
   nacl: nacl,
@@ -13,10 +10,6 @@ var salty = module.exports = {
   },
   decode: function (str) {
     return Buffer(str, 'base64');
-  },
-  hash: function (buf) {
-    if (typeof buf === 'string') buf = Buffer(buf);
-    return nacl.crypto_hash_sha256(nacl.crypto_hash_sha256(buf));
   },
   nonce: function (len) {
     var nonce = Buffer(len || nacl.crypto_box_NONCEBYTES);
@@ -36,20 +29,6 @@ salty.Wallet = asn1.define('Wallet', function () {
     this.key('identity').use(salty.Identity),
     this.key('signSk').octstr(),
     this.key('decryptSk').octstr()
-  );
-});
-salty.Intro = asn1.define('Intro', function () {
-  this.seq().obj(
-    this.key('version').int(),
-    this.key('type').int(),
-    this.key('headerLength').int()
-  );
-});
-salty.Header = asn1.define('Header', function () {
-  this.seq().obj(
-    this.key('nonce').octstr(),
-    this.key('identity').use(salty.Identity),
-    this.key('headers').octstr()
   );
 });
 // helper for making prototypes
@@ -76,8 +55,6 @@ salty.identity = function (buf) {
   identity.__proto__ = makePrototype({
     // convert identity to a buffer
     toBuffer: function () { return salty.Identity.encode(this, 'der') },
-    // convert identity to a QR code
-    toImage: function (options) { return qr.image('salty:i-' + salty.encode(this.toBuffer(), options)) },
     // verify a signature
     verify: function (sig, detachedBuf) {
       if (detachedBuf) sig = Buffer.concat([sig, detachedBuf]);
@@ -133,8 +110,6 @@ salty.wallet = function (buf) {
         this.queue(salty.xor(data, nonce, k));
       });
     },
-    // convert wallet to a QR code
-    toImage: function (options) { return qr.image('salty:w-' + salty.encode(this.toBuffer(), options)) },
     toPEM: function (passphrase) {
       return pemtools(this.toBuffer(), 'SALTY WALLET', passphrase).toString();
     }
@@ -147,5 +122,3 @@ salty.fromPEM = function (str, passphrase) {
   else if (pem.tag === 'SALTY WALLET') return salty.wallet(pem.toBuffer());
   else throw new Error('not a salty PEM');
 };
-salty.net = require('./net');
-salty.http = require('./http');

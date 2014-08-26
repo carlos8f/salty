@@ -31,13 +31,8 @@ describe('tests', function () {
     fs.readFile(mPath, function (err, data) {
       assert.ifError(err);
       m = data;
-      assert.equal(salty.hash(m).toString('hex'), '33503df84f0b613f4cabccc9780caac2d9be41a4166f27e494b76743ac3ff952');
       done();
     });
-  });
-
-  it('hash', function () {
-    assert.equal(salty.hash('carlos').toString('hex'), 'f44e63fbccd5ff41d2bf4c36d7f649e73143a54cc556e1646f8b6bc628aa164d');
   });
 
   it('nonce', function () {
@@ -81,34 +76,6 @@ describe('tests', function () {
     assert.equal(signed.length, require('sodium').api.crypto_sign_BYTES);
     var orig = alice.identity.verify(signed, m);
     assert.deepEqual(orig, m);
-  });
-
-  it('identity qr code', function (done) {
-    var stream = alice.identity.toImage();
-    var p = path.join(tmpDir, 'alice.identity.png');
-    stream
-      .pipe(fs.createWriteStream(p))
-      .on('finish', function () {
-        // @todo: decode the qr code image somehow?
-        fs.exists(p, function (exists) {
-          assert(exists);
-          done();
-        });
-      });
-  });
-
-  it('wallet qr code', function (done) {
-    var stream = alice.toImage();
-    var p = path.join(tmpDir, 'alice.wallet.png');
-    stream
-      .pipe(fs.createWriteStream(p))
-      .on('finish', function () {
-        // @todo: decode the qr code image somehow?
-        fs.exists(p, function (exists) {
-          assert(exists);
-          done();
-        });
-      });
   });
 
   it('identity pem', function () {
