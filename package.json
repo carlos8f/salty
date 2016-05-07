@@ -5,18 +5,18 @@
   "main": "index.js",
   "bin": "cli.js",
   "dependencies": {
-    "asn1.js": "^0.3.0",
-    "commander": "^2.3.0",
-    "event-stream": "^3.1.5",
-    "pemtools": "^0.4.0",
-    "sodium": "^1.0.11"
+    "asn1.js": "^4.6.0",
+    "commander": "^2.9.0",
+    "event-stream": "^3.3.2",
+    "pemtools": "^0.4.2",
+    "tweetnacl": "^0.14.3"
   },
   "devDependencies": {
     "idgen": "^2.0.2",
-    "middler": "^0.7.1",
-    "mocha": "*",
-    "request": "^2.36.0",
-    "rimraf": "^2.2.8"
+    "middler": "^0.8.2",
+    "mocha": "^2.4.5",
+    "request": "^2.72.0",
+    "rimraf": "^2.5.2"
   },
   "scripts": {
     "test": "./node_modules/.bin/mocha --reporter spec --timeout 10s"

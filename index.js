@@ -1,4 +1,4 @@
-var nacl = require('sodium').api
+var nacl = require('tweetnacl')
   , asn1 = require('asn1.js')
   , es = require('event-stream')
   , pemtools = require('pemtools')
@@ -6,17 +6,19 @@ var nacl = require('sodium').api
 var salty = module.exports = {
   nacl: nacl,
   encode: function (buf) {
-    return buf.toString('base64');
+    return buf.toString('base64')
   },
   decode: function (str) {
-    return Buffer(str, 'base64');
+    return Buffer(str, 'base64')
   },
   nonce: function (len) {
-    var nonce = Buffer(len || nacl.crypto_box_NONCEBYTES);
-    nacl.randombytes_buf(nonce);
-    return nonce;
+    return Buffer(nacl.randomBytes(len || nacl.box.nonceLength))
   },
-  xor: nacl.crypto_stream_xor // scramble or unscramble a buffer using a nonce+k pair
+  xor: function (data, nonce, k) { // scramble or unscramble a buffer using a nonce+k pair
+    var output = Buffer(data.length)
+    nacl.lowlevel.crypto_stream_xor(output, 0, data, 0, data.length, nonce, k);
+    return output;
+  }
 };
 salty.Identity = asn1.define('Identity', function () {
   this.seq().obj(
@@ -57,8 +59,10 @@ salty.identity = function (buf) {
     toBuffer: function () { return salty.Identity.encode(this, 'der') },
     // verify a signature
     verify: function (sig, detachedBuf) {
-      if (detachedBuf) sig = Buffer.concat([sig, detachedBuf]);
-      return nacl.crypto_sign_open(sig, this.verifyPk);
+      if (detachedBuf) {
+        return nacl.sign.detached.verify(new Uint8Array(detachedBuf), new Uint8Array(sig), new Uint8Array(this.verifyPk)) ? detachedBuf : false;
+      }
+      return nacl.sign.open(new Uint8Array(sig), new Uint8Array(this.verifyPk));
     },
     toPEM: function (passphrase) {
       return pemtools(this.toBuffer(), 'SALTY PUBLIC KEY', passphrase).toString();
@@ -71,8 +75,8 @@ salty.wallet = function (buf) {
   if (typeof buf === 'string') buf = salty.decode(buf);
   var wallet = Buffer.isBuffer(buf) ? salty.Wallet.decode(buf, 'der') : buf;
   if (!buf) {
-    var boxKey = nacl.crypto_box_keypair();
-    var signKey = nacl.crypto_sign_keypair();
+    var boxKey = nacl.box.keyPair();
+    var signKey = nacl.sign.keyPair();
     wallet = {
       decryptSk: Buffer(boxKey.secretKey),
       signSk: Buffer(signKey.secretKey),
@@ -85,24 +89,23 @@ salty.wallet = function (buf) {
     toBuffer: function () { return salty.Wallet.encode(this, 'der') },
     // sign a buffer, optionally detaching the signature
     sign: function (buf, detach) {
-      var signed = nacl.crypto_sign(buf, this.signSk);
-      if (detach) return signed.slice(0, nacl.crypto_sign_BYTES);
-      return signed;
+      if (detach) return Buffer(nacl.sign.detached(buf, this.signSk));
+      return Buffer(nacl.sign(buf, this.signSk));
     },
     // encrypt a buffer for identity
     encrypt: function (buf, identity) {
       var nonce = salty.nonce();
-      var enc = nacl.crypto_box(buf, nonce, salty.identity(identity).encryptPk, this.decryptSk);
+      var enc = Buffer(nacl.box(buf, nonce, salty.identity(identity).encryptPk, this.decryptSk));
       return Buffer.concat([nonce, enc]);
     },
     // decrypt a buffer from identity
     decrypt: function (buf, identity) {
-      var cursor = 0, nonce = buf.slice(cursor, cursor += nacl.crypto_box_NONCEBYTES);
-      return nacl.crypto_box_open(buf.slice(cursor), nonce, salty.identity(identity).encryptPk, this.decryptSk);
+      var cursor = 0, nonce = buf.slice(cursor, cursor += nacl.box.nonceLength);
+      return Buffer(nacl.box.open(buf.slice(cursor), nonce, salty.identity(identity).encryptPk, this.decryptSk));
     },
     // compute the shared secret
     secret: function (identity) {
-      return nacl.crypto_box_beforenm(salty.identity(identity).encryptPk, this.decryptSk);
+      return Buffer(nacl.box.before(salty.identity(identity).encryptPk, this.decryptSk));
     },
     peerStream: function (nonce, identity) {
       var k = this.secret(identity);
