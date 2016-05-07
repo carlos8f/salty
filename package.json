@@ -1,6 +1,6 @@
 {
   "name": "salty",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "A tiny crypto toolkit for working with NaCl/sodium",
   "main": "index.js",
   "bin": "cli.js",
