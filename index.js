@@ -53,27 +53,32 @@ function makePrototype (methods) {
 // hydrate an identity from a string/buffer, and/or add methods
 salty.identity = function (buf) {
   if (typeof buf === 'string') buf = salty.decode(buf);
-  var identity = Buffer.isBuffer(buf) ? salty.Identity.decode(buf, 'der') : buf || {};
-  identity.__proto__ = makePrototype({
-    // convert identity to a buffer
-    toBuffer: function () { return salty.Identity.encode(this, 'der') },
-    // verify a signature
-    verify: function (sig, detachedBuf) {
-      if (detachedBuf) {
-        return nacl.sign.detached.verify(new Uint8Array(detachedBuf), new Uint8Array(sig), new Uint8Array(this.verifyPk)) ? detachedBuf : false;
+  var identity = Buffer.isBuffer(buf) ? salty.Identity.decode(buf, 'der') : buf;
+  if (identity) {
+    identity.__proto__ = makePrototype({
+      // convert identity to a buffer
+      toBuffer: function () { return salty.Identity.encode(this, 'der') },
+      // verify a signature
+      verify: function (sig, detachedBuf) {
+        if (detachedBuf) {
+          return nacl.sign.detached.verify(new Uint8Array(detachedBuf), new Uint8Array(sig), new Uint8Array(this.verifyPk)) ? detachedBuf : false;
+        }
+        return nacl.sign.open(new Uint8Array(sig), new Uint8Array(this.verifyPk));
+      },
+      toPEM: function (passphrase) {
+        return pemtools(this.toBuffer(), 'SALTY PUBLIC KEY', passphrase).toString();
       }
-      return nacl.sign.open(new Uint8Array(sig), new Uint8Array(this.verifyPk));
-    },
-    toPEM: function (passphrase) {
-      return pemtools(this.toBuffer(), 'SALTY PUBLIC KEY', passphrase).toString();
-    }
-  });
+    });
+  }
   return identity;
 };
 // create a new wallet or hydrate it from a string/buffer
 salty.wallet = function (buf) {
   if (typeof buf === 'string') buf = salty.decode(buf);
   var wallet = Buffer.isBuffer(buf) ? salty.Wallet.decode(buf, 'der') : buf;
+  if (buf && !wallet) {
+    return false;
+  }
   if (!buf) {
     var boxKey = nacl.box.keyPair();
     var signKey = nacl.sign.keyPair();
