@@ -112,6 +112,7 @@ module.exports = {
       fs.readFile(p, {encoding: 'utf8'}, function (err, pubkey) {
         var output
         if (err && err.code === 'ENOENT') {
+          if (!email) return cb(new Error('you must run `salty init` before running `salty id`.'))
           output = 'salty-id ' + base64url.encode(wallet.identity.toBuffer()) + ' ' + email
         }
         else if (err) return cb(err)
