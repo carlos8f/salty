@@ -11,6 +11,7 @@ var program = require('commander')
 
 program
   .command('init')
+  .description('initialize a wallet at ~/.salty/id_salty')
   .action(function (options) {
     prompt('Enter your name (can be blank): ', function (name) {
       (function promptEmail () {
@@ -33,6 +34,7 @@ program
 
 program
   .command('id')
+  .description('output your shareable pubkey string')
   .alias('pubkey')
   .action(function (options) {
     cli.pubkey(function (err, pubkey) {
@@ -86,6 +88,7 @@ program
 
 program
   .command('encrypt <infile> [outfile]')
+  .description('encrypt a file')
   .option('--to <email>', 'email address to encrypt for (salty-id must be imported first)')
   .action(function (infile, outfile, options) {
     cli.encrypt(
@@ -97,6 +100,7 @@ program
 
 program
   .command('decrypt <infile> [outfile]')
+  .description('decrypt a file')
   .action(function (infile, outfile, options) {
     cli.decrypt(
       infile === 'STDIN' ? process.stdin : fs.createReadStream(infile),
