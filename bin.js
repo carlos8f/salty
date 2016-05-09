@@ -85,9 +85,23 @@ program
   })
 
 program
-  .command('encrypt [--to=email] <infile> [outfile]')
+  .command('encrypt <infile> [outfile]')
+  .option('--to <email>', 'email address to encrypt for (salty-id must be imported first)')
+  .action(function (infile, outfile, options) {
+    cli.encrypt(
+      options.to,
+      infile === 'STDIN' ? process.stdin : fs.createReadStream(infile),
+      outfile ? fs.createWriteStream(outfile) : process.stdout
+    )
+  })
 
 program
   .command('decrypt <infile> [outfile]')
+  .action(function (infile, outfile, options) {
+    cli.decrypt(
+      infile === 'STDIN' ? process.stdin : fs.createReadStream(infile),
+      outfile ? fs.createWriteStream(outfile) : process.stdout
+    )
+  })
 
 program.parse(process.argv)
