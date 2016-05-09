@@ -21,7 +21,7 @@ program
             console.error('invalid email!')
             return promptEmail()
           }
-          if (name) email = '"' + name.replace(/"/g, '') + '" <' + email + '>'
+          if (name) email = '"' + name.replace(/"|'/g, '') + '" <' + email + '>'
           cli.pubkey(email, function (err, pubkey) {
             if (err) throw err
             console.log('\n' + pubkey + '\n')
@@ -83,5 +83,11 @@ program
       })
     }
   })
+
+program
+  .command('encrypt [--to=email] <infile> [outfile]')
+
+program
+  .command('decrypt <infile> [outfile]')
 
 program.parse(process.argv)
