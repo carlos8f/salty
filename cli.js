@@ -144,6 +144,7 @@ module.exports = {
       if (err) return cb(err)
     })
   }
+  // sign and verify?
 }
 
 /*
