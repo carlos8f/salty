@@ -200,7 +200,6 @@ module.exports = {
       var sha = crypto.createHash('sha1')
       inStream.on('data', function (chunk) {
         if (!decryptor) {
-          //console.log('instream data (no decryptor)')
           str += chunk.toString()
           chunks.push(chunk)
           var match = str.match('\r\n\r\n')
@@ -229,37 +228,14 @@ module.exports = {
             }
             var nonce = salty.decode(header['nonce'])
             blocked = new BlockStream(65536, {nopad: true})
-            blocked.once('end', function () {
-              console.log('blocked ended')
-            })
             decryptor = wallet.peerStream(nonce, identity)
-            decryptor.once('end', function () {
-              console.log('decryptor ended')
-            })
-            outStream.once('finish', function () {
-              console.log('outstream finished')
-            })
             decryptor.pipe(outStream)
             blocked.pipe(decryptor)
-            decryptor.on('data', function (chunk) {
-              //console.log('decryptor data', chunk.length, chunk)
-            })
             var buf = Buffer.concat(chunks).slice(header_length)
-            //console.log('decryptor init', header, buf.length, header_length)
             blocked.write(buf)
             inStream.pipe(blocked)
-            console.log('set up decryptor')
           }
         }
-        else {
-          //console.log('instream data')
-        }
-      })
-      inStream.once('end', function () {
-        console.log('instream ended')
-        setTimeout(function () {
-          console.log('exit')
-        }, 2000)
       })
       inStream.resume()
     })
