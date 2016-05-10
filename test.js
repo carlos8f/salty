@@ -38,15 +38,21 @@ describe('tests', function () {
     });
   });
 
-  it('nonce', function () {
-    nonce = salty.nonce();
-    assert.equal(nonce.length, salty.nacl.box.nonceLength);
-  });
-
-  it('alice and bob', function () {
-    alice = salty.wallet();
-    bob = salty.wallet();
-  });
+  it('set up wallets', function (done) {
+    nonce = Buffer('+EftbTsiK3LZXaFtORaFwsitQ+fpihWt', 'base64')
+    child_process.exec('tar -xf ' + path.join(__dirname, 'test-wallets.tar.gz'), {cwd: tmpDir}, function (err, stdout, stderr) {
+      assert.ifError(err)
+      fs.readFile(path.join(tmpDir, 'alice', '.salty', 'id_salty'), {encoding: 'utf8'}, function (err, pem) {
+        assert.ifError(err)
+        alice = salty.fromPEM(pem)
+        fs.readFile(path.join(tmpDir, 'bob', '.salty', 'id_salty'), {encoding: 'utf8'}, function (err, pem) {
+          assert.ifError(err)
+          bob = salty.fromPEM(pem)
+          done()
+        })
+      })
+    })
+  })
 
   it('alice and bob compute the same k', function () {
     var k1 = bob.secret(alice.identity);
@@ -138,13 +144,6 @@ describe('tests', function () {
         done();
       });
   });
-  it('set up wallets', function (done) {
-    nonce = Buffer('+EftbTsiK3LZXaFtORaFwsitQ+fpihWt', 'base64')
-    child_process.exec('tar -xf ' + path.join(__dirname, 'test-wallets.tar.gz'), {cwd: tmpDir}, function (err, stdout, stderr) {
-      assert.ifError(err)
-      done()
-    })
-  })
   it('alice encrypts file for bob (cli)', function (done) {
     var env = {}
     Object.keys(process.env).forEach(function (k) {
