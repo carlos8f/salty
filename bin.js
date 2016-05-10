@@ -6,6 +6,7 @@ var cli = require('./cli')
   , http = require('http')
   , https = require('https')
   , salty = require('./')
+  , path = require('path')
 
 var program = require('commander')
   .version(require('./package.json').version)
@@ -88,11 +89,12 @@ program
   })
 
 program
-  .command('encrypt <infile> [outfile]')
+  .command('encrypt <infile>')
   .description('encrypt a file')
   .option('--to <email>', 'email address to encrypt for (salty-id must be imported first)')
   .option('--nonce <nonce>', 'use a specific nonce (base64-encoded)')
-  .action(function (infile, outfile, options) {
+  .action(function (infile, options) {
+    outfile = infile + '.salty'
     cli.encrypt(
       options.to,
       infile,
@@ -102,9 +104,21 @@ program
   })
 
 program
-  .command('decrypt <infile> [outfile]')
+  .command('decrypt <infile>')
   .description('decrypt a file')
-  .action(function (infile, outfile, options) {
+  .option('--force', 'force opening a non-.salty file')
+  .action(function (infile, options) {
+    var ext = path.extname(infile)
+    var outfile
+    if (ext !== '.salty') {
+      if (options.force) {
+        outfile = infile + '-decrypted'
+      }
+      else {
+        throw new Error('<infile> is not a .salty file. --force to ignore this.')
+      }
+    }
+    outfile = infile.replace(/\.salty$/, '')
     cli.decrypt(
       infile,
       outfile
