@@ -63,7 +63,7 @@ salty.identity = function (buf) {
         if (detachedBuf) {
           return nacl.sign.detached.verify(new Uint8Array(detachedBuf), new Uint8Array(sig), new Uint8Array(this.verifyPk)) ? detachedBuf : false;
         }
-        return nacl.sign.open(new Uint8Array(sig), new Uint8Array(this.verifyPk));
+        return Buffer(nacl.sign.open(new Uint8Array(sig), new Uint8Array(this.verifyPk)));
       },
       toPEM: function (passphrase) {
         return pemtools(this.toBuffer(), 'SALTY PUBLIC KEY', passphrase).toString();

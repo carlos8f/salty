@@ -161,7 +161,7 @@ module.exports = {
     inStream.pause()
 
     this.init(function (err, wallet) {
-      if (err) return outStream.emit('error', err)
+      if (err) throw err
       if (!email) return withIdentity(wallet.identity)
       var p = path.join(homeDir, '.salty', 'imported_keys')
       fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
@@ -182,7 +182,7 @@ module.exports = {
           }
         })
         if (!chosen) {
-          return outStream.emit('error', new Error('email not found in imported_keys. run `salty import <pubkey>` first?'))
+          throw new Error('email not found in imported_keys. run `salty import <pubkey>` first?')
         }
         withIdentity(chosen)
       }
@@ -209,7 +209,12 @@ module.exports = {
             .pipe(fs.createWriteStream(outPath, {mode: 0o600}))
             .once('finish', function () {
               console.log('encrypted to', outPath)
-              console.log(prettyjson.render(header, {noColor: false}))
+              console.log(prettyjson.render(header, {
+                noColor: false,
+                keysColor: 'blue',
+                dashColor: 'magenta',
+                stringColor: 'grey'
+              }))
             })
         })
         outStream.once('finish', function () {
@@ -248,7 +253,7 @@ module.exports = {
     var outStream = fs.createWriteStream(outPath, {mode: 0o600})
     inStream.pause()
     this.init(function (err, wallet) {
-      if (err) return outStream.emit('error', err)
+      if (err) throw err
       var str = ''
       var chunks = []
       var header
@@ -264,31 +269,46 @@ module.exports = {
             header = Object.create(null)
             var parts = str.split('\r\n\r\n')
             var header_lines = parts.shift().split('\r\n')
-            if (header_lines.length < 5) return outStream.emit('error', new Error('failed to read header'))
+            if (header_lines.length < 5) throw new Error('failed to read header')
             var header_length = 2
             header_lines.forEach(function (line) {
               var parts = line.split(': ')
-              if (parts.length !== 2) return outStream.emit('error', new Error('failed to read header'))
+              if (parts.length !== 2) throw new Error('failed to read header')
+              if (typeof header[parts[0].toLowerCase()] !== 'undefined') throw new Error('cannot redefine header')
               header[parts[0].toLowerCase()] = parts[1]
               header_length += line.length + 2
             })
-            if (!header['from-salty-id']) return outStream.emit('error', new Error('from-salty-id header required'))
-            if (!header['nonce']) return outStream.emit('error', new Error('nonce header required'))
+            if (!header['from-salty-id']) throw new Error('from-salty-id header required')
+            if (!header['nonce']) throw new Error('nonce header required')
             try {
               var identity = salty.identity(header['from-salty-id'])
             }
             catch (e) {
-              return outStream.emit('error', new Error('invalid from-salty-id'))
+              throw new Error('invalid from-salty-id')
             }
             if (header['to-salty-id'] && header['to-salty-id'] !== wallet.identity.toString()) {
-              return outStream.emit('error', new Error('message addressed to some other salty-id'))
+              throw new Error('message addressed to some other salty-id')
             }
             var nonce = salty.decode(header['nonce'])
-            if (!header['hash']) return outStream.emit('error', new Error('hash header is required'))
-            if (!header['signature']) return outStream.emit('error', new Error('signature header is required'))
-            if (!identity.verify(Buffer(header['signature'], 'base64'))) {
-              return outStream.emit('error', new Error('signature verification failed'))
+            if (!header['hash']) throw new Error('hash header is required')
+            if (!header['signature']) throw new Error('signature header is required')
+            var signedStr = identity.verify(Buffer(header['signature'], 'base64'))
+            if (!signedStr) {
+              throw new Error('signature verification failed')
             }
+            var signed_header = Object.create(null)
+            signedStr.toString('utf8').split('\r\n').forEach(function (line) {
+              if (!line) return
+              var parts = line.split(': ')
+              if (parts.length !== 2) throw new Error('failed to read signed header')
+              if (typeof signed_header[parts[0].toLowerCase()] !== 'undefined') throw new Error('cannot redefine signed header')
+              signed_header[parts[0].toLowerCase()] = parts[1]
+            })
+            Object.keys(header).forEach(function (k) {
+              if (k !== 'signature' && signed_header[k] !== header[k]) {
+                throw new Error('mismatched header ' + k + ', value ' + header[k] + ' vs. signed header ' + signed_header[k])
+              }
+            })
             var shaStream = crypto.createHash('sha256')
             outStream.once('finish', function () {
               fs.createReadStream(outPath)
