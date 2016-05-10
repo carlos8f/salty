@@ -1,7 +1,7 @@
 salty
 =====
 
-A full console-based crypto system with public key sharing, encryption, and signature verification.
+A practical, compact CLI crypto system based on TweetNaCl, featuring public key sharing and zero-password peer stream encryption.
 
 ## Install
 
@@ -9,7 +9,7 @@ A full console-based crypto system with public key sharing, encryption, and sign
 $ npm install -g salty
 ```
 
-### Usage
+## Usage
 
 ```
 $ salty
@@ -59,3 +59,11 @@ $ salty
     -h, --help  output usage information
     --force  ignore warnings and do it
 ```
+
+## TODO
+
+- passphrase wallet encryption and removal (decryption)
+- stdin parsing / stdout dest
+- signing, detaching, verifying
+- pem output option
+- dump/restore (tar the wallet dir?)

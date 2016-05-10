@@ -138,9 +138,20 @@ module.exports = {
       })
     })
   },
-  encrypt: function (email, inPath, outPath, nonce) {
+  encrypt: function (email, inPath, outPath, nonce, force) {
     // encrypt a stream for pubkey
     var self = this
+    try {
+      fs.statSync(outPath)
+      if (!force) {
+        throw new Error('refusing to overwrite ' + outPath + '. use --force to ignore this.')
+      }
+    }
+    catch (err) {
+      if (err && err.code !== 'ENOENT') {
+        throw err
+      }
+    }
     if (email) {
       var parsedEmail = addrs.parseOneAddress(email)
       if (!parsedEmail) throw new Error('invalid email address: ' + email)
