@@ -8,6 +8,9 @@ var base64url = require('base64-url')
   , pause = require('pause')
   , crypto = require('crypto')
   , BlockStream = require('block-stream')
+  , tmpDir = require('os').tmpDir()
+  , assert = require('assert')
+  , prettyjson = require('prettyjson')
 
 module.exports = {
   _parsePubkey: function (pubkey) {
@@ -135,13 +138,15 @@ module.exports = {
       })
     })
   },
-  encrypt: function (email, inStream, outStream, nonce) {
+  encrypt: function (email, inPath, outPath, nonce) {
     // encrypt a stream for pubkey
     var self = this
     if (email) {
       var parsedEmail = addrs.parseOneAddress(email)
       if (!parsedEmail) throw new Error('invalid email address: ' + email)
     }
+    var inStream = fs.createReadStream(inPath)
+    var outStream = fs.createWriteStream(outPath, {mode: 0o600})
     inStream.pause()
 
     this.init(function (err, wallet) {
@@ -178,17 +183,47 @@ module.exports = {
           'From-Salty-Id': wallet.identity.toString(),
           'Nonce': salty.encode(nonce)
         }
-        Object.keys(header).forEach(function (k) {
-          outStream.write(k + ': ' + header[k] + '\r\n')
+        function writeHeader () {
+          var out = ''
+          Object.keys(header).forEach(function (k) {
+            out += k + ': ' + header[k] + '\r\n'
+          })
+          return out
+        }
+        var shaStream = crypto.createHash('sha256')
+        var tmp = path.join(tmpDir, Math.random().toString(36).substring(2))
+        var tmpStream = fs.createWriteStream(tmp, {mode: 0o600})
+        tmpStream.once('finish', function () {
+          fs.createReadStream(tmp)
+            .pipe(fs.createWriteStream(outPath, {mode: 0o600}))
+            .once('finish', function () {
+              console.log('encrypted to', outPath)
+              console.log(prettyjson.render(header, {noColor: false}))
+            })
         })
-        outStream.write('\r\n')
+        outStream.once('finish', function () {
+          var headerStr = writeHeader()
+          assert(header['Hash'])
+          header['Signature'] = wallet.sign(Buffer(headerStr)).toString('base64')
+          var finalHeader = writeHeader()
+          tmpStream.write(finalHeader)
+          tmpStream.write('\r\n')
+          var ctxt = fs.createReadStream(outPath)
+          ctxt.pipe(tmpStream)
+        })
+        shaStream.once('data', function (sha) {
+          header['Hash'] = sha.toString('base64')
+        })
+        inStream.pipe(shaStream)
         inStream.pipe(new BlockStream(65536, {nopad: true})).pipe(encryptor).pipe(outStream)
       }
     })
   },
-  decrypt: function (inStream, outStream) {
+  decrypt: function (inPath, outPath) {
     // decrypt a stream with wallet
     var self = this
+    var inStream = fs.createReadStream(inPath)
+    var outStream = fs.createWriteStream(outPath, {mode: 0o600})
     inStream.pause()
     this.init(function (err, wallet) {
       if (err) return outStream.emit('error', err)
@@ -207,7 +242,7 @@ module.exports = {
             header = Object.create(null)
             var parts = str.split('\r\n\r\n')
             var header_lines = parts.shift().split('\r\n')
-            if (header_lines.length < 3) return outStream.emit('error', new Error('failed to read header'))
+            if (header_lines.length < 5) return outStream.emit('error', new Error('failed to read header'))
             var header_length = 2
             header_lines.forEach(function (line) {
               var parts = line.split(': ')
@@ -227,6 +262,29 @@ module.exports = {
               return outStream.emit('error', new Error('message addressed to some other salty-id'))
             }
             var nonce = salty.decode(header['nonce'])
+            if (!header['hash']) return outStream.emit('error', new Error('hash header is required'))
+            if (!header['signature']) return outStream.emit('error', new Error('signature header is required'))
+            if (!identity.verify(Buffer(header['signature'], 'base64'))) {
+              return outStream.emit('error', new Error('signature verification failed'))
+            }
+            var shaStream = crypto.createHash('sha256')
+            outStream.once('finish', function () {
+              fs.createReadStream(outPath)
+                .pipe(shaStream)
+                .once('data', function (sha) {
+                  if (sha.toString('base64') !== header['hash']) {
+                    fs.unlinkSync(outPath)
+                    throw new Error('wrote bad sha ' + sha.toString('base64') + ' != ' + header['hash'])
+                  }
+                  console.log('decrypted to', outPath)
+                  console.log(prettyjson.render(header, {
+                    noColor: false,
+                    keysColor: 'blue',
+                    dashColor: 'magenta',
+                    stringColor: 'grey'
+                  }))
+                })
+            })
             blocked = new BlockStream(65536, {nopad: true})
             decryptor = wallet.peerStream(nonce, identity)
             decryptor.pipe(outStream)

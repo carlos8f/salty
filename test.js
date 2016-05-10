@@ -161,7 +161,7 @@ describe('tests', function () {
     env['HOME'] = path.join(tmpDir, 'alice')
     var proc = child_process.spawn(path.join(__dirname, 'bin.js'), ['encrypt', '--to=bob@example.com', '--nonce=' + nonce.toString('base64'), p, p + '.salty'], {env: env})
     proc.stderr.pipe(process.stderr)
-    proc.stdout.pipe(process.stdout)
+    //proc.stdout.pipe(process.stdout)
     proc.once('close', function (code) {
       assert(!code)
       done()
@@ -171,7 +171,7 @@ describe('tests', function () {
     child_process.spawn('tail', ['-n+5', p + '.salty']).stdout
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
-        assert.equal(data.toString('hex'), '0b911be779d0fc7c8a457dc60eee320e5935511e');
+        assert.equal(data.toString('hex'), 'dbccdcb74021274a8678c55efa6225a5f853354c');
         done();
       });
   });
@@ -183,7 +183,7 @@ describe('tests', function () {
     env['HOME'] = path.join(tmpDir, 'bob')
     var proc = child_process.spawn(path.join(__dirname, 'bin.js'), ['decrypt', p + '.salty', p + '.decrypted.jpg'], {env: env})
     proc.stderr.pipe(process.stderr)
-    proc.stdout.pipe(process.stdout)
+    //proc.stdout.pipe(process.stdout)
     proc.once('close', function (code) {
       assert(!code)
       done()

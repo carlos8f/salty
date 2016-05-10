@@ -95,8 +95,8 @@ program
   .action(function (infile, outfile, options) {
     cli.encrypt(
       options.to,
-      infile === 'STDIN' ? process.stdin : fs.createReadStream(infile),
-      outfile ? fs.createWriteStream(outfile) : process.stdout,
+      infile,
+      outfile,
       options.nonce ? salty.decode(options.nonce) : null
     )
   })
@@ -106,8 +106,8 @@ program
   .description('decrypt a file')
   .action(function (infile, outfile, options) {
     cli.decrypt(
-      infile === 'STDIN' ? process.stdin : fs.createReadStream(infile),
-      outfile ? fs.createWriteStream(outfile) : process.stdout
+      infile,
+      outfile
     )
   })
 
