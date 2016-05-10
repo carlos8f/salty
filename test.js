@@ -8,6 +8,7 @@ request = require('request');
 mkdirp = require('mkdirp');
 base64url = require('base64-url');
 child_process = require('child_process');
+BlockStream = require('block-stream');
 
 tmpDir = path.join(require('os').tmpDir(), require('idgen')());
 
@@ -120,6 +121,14 @@ describe('tests', function () {
       .pipe(fs.createWriteStream(p + '-encrypted'))
       .on('finish', done);
   });
+  it('verify encrypted', function (done) {
+    fs.createReadStream(p + '-encrypted')
+      .pipe(crypto.createHash('sha1'))
+      .on('data', function (data) {
+        assert.equal(data.toString('hex'), '0b911be779d0fc7c8a457dc60eee320e5935511e');
+        done();
+      });
+  });
   it('decrypt stream', function (done) {
     fs.createReadStream(p + '-encrypted')
       .pipe(bob.peerStream(nonce, alice.identity))
@@ -158,6 +167,14 @@ describe('tests', function () {
       done()
     })
   })
+  it('verify encrypted', function (done) {
+    child_process.spawn('tail', ['-n+5', p + '.salty']).stdout
+      .pipe(crypto.createHash('sha1'))
+      .on('data', function (data) {
+        assert.equal(data.toString('hex'), '0b911be779d0fc7c8a457dc60eee320e5935511e');
+        done();
+      });
+  });
   it('bob decrypts file from alice (cli)', function (done) {
     var env = {}
     Object.keys(process.env).forEach(function (k) {

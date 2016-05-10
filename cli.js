@@ -7,6 +7,7 @@ var base64url = require('base64-url')
   , addrs = require('email-addresses')
   , pause = require('pause')
   , crypto = require('crypto')
+  , BlockStream = require('block-stream')
 
 module.exports = {
   _parsePubkey: function (pubkey) {
@@ -181,8 +182,7 @@ module.exports = {
           outStream.write(k + ': ' + header[k] + '\r\n')
         })
         outStream.write('\r\n')
-        inStream.pipe(encryptor).pipe(outStream)
-        //handle.resume()
+        inStream.pipe(new BlockStream(65536, {nopad: true})).pipe(encryptor).pipe(outStream)
       }
     })
   },
@@ -196,9 +196,11 @@ module.exports = {
       var chunks = []
       var header
       var decryptor
+      var blocked
       var sha = crypto.createHash('sha1')
       inStream.on('data', function (chunk) {
         if (!decryptor) {
+          //console.log('instream data (no decryptor)')
           str += chunk.toString()
           chunks.push(chunk)
           var match = str.match('\r\n\r\n')
@@ -226,28 +228,39 @@ module.exports = {
               return outStream.emit('error', new Error('message addressed to some other salty-id'))
             }
             var nonce = salty.decode(header['nonce'])
-            decryptor = wallet.peerStream(nonce, identity)
-            var bytes = 0
-            decryptor.on('data', function (chunk) {
-              bytes += chunk.length
-              sha.update(chunk)
-              console.log('decryptor data', chunk.length)
+            blocked = new BlockStream(65536, {nopad: true})
+            blocked.once('end', function () {
+              console.log('blocked ended')
             })
-            decryptor.on('end', function () {
-              console.log('decryptor end', sha.digest('hex'))
+            decryptor = wallet.peerStream(nonce, identity)
+            decryptor.once('end', function () {
+              console.log('decryptor ended')
+            })
+            outStream.once('finish', function () {
+              console.log('outstream finished')
             })
             decryptor.pipe(outStream)
-            outStream.once('finish', function () {
-              console.log('outstream finish', bytes)
+            blocked.pipe(decryptor)
+            decryptor.on('data', function (chunk) {
+              //console.log('decryptor data', chunk.length, chunk)
             })
             var buf = Buffer.concat(chunks).slice(header_length)
             //console.log('decryptor init', header, buf.length, header_length)
-            decryptor.write(buf)
-            inStream.pipe(decryptor)
+            blocked.write(buf)
+            inStream.pipe(blocked)
+            console.log('set up decryptor')
           }
         }
+        else {
+          //console.log('instream data')
+        }
       })
-      
+      inStream.once('end', function () {
+        console.log('instream ended')
+        setTimeout(function () {
+          console.log('exit')
+        }, 2000)
+      })
       inStream.resume()
     })
   }
