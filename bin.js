@@ -24,10 +24,12 @@ program
             console.error('invalid email!')
             return promptEmail()
           }
-          if (name) email = '"' + name.replace(/"|'/g, '') + '" <' + email + '>'
+          if (name) email = '"' + name.replace(/"|'/g, '') + '" <' + parsed.address.toLowerCase() + '>'
+          else if (parsed.name) email = '"' + parsed.name.replace(/"|'/g, '') + '" <' + parsed.address.toLowerCase() + '>'
+          else email = email.toLowerCase()
           cli.pubkey(email, function (err, pubkey) {
             if (err) throw err
-            console.log('\n' + pubkey + '\n')
+            console.log('\nHint: Share this string with your friends so they can\n\t`salty import <pubkey>`\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
           })
         })
       })()
@@ -85,6 +87,7 @@ program
     function withPubkey (pubkey) {
       cli.import(pubkey, function (err, pubkey) {
         if (err) throw err
+        console.log('imported OK')
       })
     }
   })
