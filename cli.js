@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-var pkg = require('./package.json')
-  , base64url = require('base64-url')
+var base64url = require('base64-url')
   , fs = require('fs')
   , homeDir = process.env['USER'] === 'root' ? '/root' : process.env['HOME'] || '/home/' + process.env['USER']
   , salty = require('./')
   , path = require('path')
   , addrs = require('email-addresses')
   , pause = require('pause')
+  , crypto = require('crypto')
 
 module.exports = {
   _parsePubkey: function (pubkey) {
@@ -134,14 +134,15 @@ module.exports = {
       })
     })
   },
-  encrypt: function (email, inStream, outStream) {
+  encrypt: function (email, inStream, outStream, nonce) {
     // encrypt a stream for pubkey
     var self = this
     if (email) {
       var parsedEmail = addrs.parseOneAddress(email)
       if (!parsedEmail) throw new Error('invalid email address: ' + email)
     }
-    var handle = pause(inStream)
+    inStream.pause()
+
     this.init(function (err, wallet) {
       if (err) return outStream.emit('error', err)
       if (!email) return withIdentity(wallet.identity)
@@ -169,9 +170,8 @@ module.exports = {
         withIdentity(chosen)
       }
       function withIdentity (identity) {
-        var nonce = salty.nonce()
+        nonce || (nonce = salty.nonce())
         var encryptor = wallet.peerStream(nonce, identity)
-        inStream.pipe(encryptor).pipe(outStream)
         var header = {
           'To-Salty-Id': identity.toString(),
           'From-Salty-Id': wallet.identity.toString(),
@@ -181,26 +181,24 @@ module.exports = {
           outStream.write(k + ': ' + header[k] + '\r\n')
         })
         outStream.write('\r\n')
-        handle.resume()
+        inStream.pipe(encryptor).pipe(outStream)
+        //handle.resume()
       }
     })
   },
   decrypt: function (inStream, outStream) {
     // decrypt a stream with wallet
     var self = this
-    var handle = pause(inStream)
+    inStream.pause()
     this.init(function (err, wallet) {
       if (err) return outStream.emit('error', err)
       var str = ''
       var chunks = []
       var header
       var decryptor
+      var sha = crypto.createHash('sha1')
       inStream.on('data', function (chunk) {
-        if (decryptor) {
-          decryptor.write(chunk)
-          //console.log('decryptor write', chunk.length)
-        }
-        else {
+        if (!decryptor) {
           str += chunk.toString()
           chunks.push(chunk)
           var match = str.match('\r\n\r\n')
@@ -232,26 +230,25 @@ module.exports = {
             var bytes = 0
             decryptor.on('data', function (chunk) {
               bytes += chunk.length
-              //console.log('decryptor data', chunk.length)
+              sha.update(chunk)
+              console.log('decryptor data', chunk.length)
             })
             decryptor.on('end', function () {
-              //console.log('decryptor end', bytes)
+              console.log('decryptor end', sha.digest('hex'))
             })
             decryptor.pipe(outStream)
             outStream.once('finish', function () {
-              //console.log('outstream finish', bytes)
+              console.log('outstream finish', bytes)
             })
             var buf = Buffer.concat(chunks).slice(header_length)
             //console.log('decryptor init', header, buf.length, header_length)
             decryptor.write(buf)
+            inStream.pipe(decryptor)
           }
         }
       })
-      inStream.once('end', function () {
-        decryptor.end()
-        //console.log('instream end')
-      })
-      handle.resume()
+      
+      inStream.resume()
     })
   }
   // sign and verify?

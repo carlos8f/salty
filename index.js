@@ -114,6 +114,8 @@ salty.wallet = function (buf) {
     },
     peerStream: function (nonce, identity) {
       var k = this.secret(identity);
+      console.log('nonce', nonce.toString('base64'))
+      console.log('secret', k.toString('base64'))
       return es.through(function write (data) {
         this.queue(salty.xor(data, nonce, k));
       });

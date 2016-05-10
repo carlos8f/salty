@@ -5,6 +5,9 @@ path = require('path');
 crypto = require('crypto');
 rimraf = require('rimraf');
 request = require('request');
+mkdirp = require('mkdirp');
+base64url = require('base64-url');
+child_process = require('child_process');
 
 tmpDir = path.join(require('os').tmpDir(), require('idgen')());
 
@@ -121,7 +124,6 @@ describe('tests', function () {
       });
   });
   it('alice encrypts stream for herself', function (done) {
-    nonce = salty.nonce()
     fs.createReadStream(p)
       .pipe(alice.peerStream(nonce, alice.identity))
       .pipe(fs.createWriteStream(p + '-encrypted2'))
@@ -130,6 +132,49 @@ describe('tests', function () {
   it('decrypt stream', function (done) {
     fs.createReadStream(p + '-encrypted2')
       .pipe(alice.peerStream(nonce, alice.identity))
+      .pipe(crypto.createHash('sha1'))
+      .on('data', function (data) {
+        assert.equal(data.toString('hex'), '2bce2ffc40e0d90afe577a76db5db4290c48ddf4');
+        done();
+      });
+  });
+  it('set up wallets', function (done) {
+    nonce = Buffer('+EftbTsiK3LZXaFtORaFwsitQ+fpihWt', 'base64')
+    child_process.exec('tar -xf ' + path.join(__dirname, 'test-wallets.tar.gz'), {cwd: tmpDir}, function (err, stdout, stderr) {
+      assert.ifError(err)
+      done()
+    })
+  })
+  it('alice encrypts file for bob (cli)', function (done) {
+    var env = {}
+    Object.keys(process.env).forEach(function (k) {
+      env[k] = process.env[k]
+    })
+    env['HOME'] = path.join(tmpDir, 'alice')
+    var proc = child_process.spawn(path.join(__dirname, 'bin.js'), ['encrypt', '--to=bob@example.com', '--nonce=' + nonce.toString('base64'), p, p + '.salty'], {env: env})
+    proc.stderr.pipe(process.stderr)
+    proc.stdout.pipe(process.stdout)
+    proc.once('close', function (code) {
+      assert(!code)
+      done()
+    })
+  })
+  it('bob decrypts file from alice (cli)', function (done) {
+    var env = {}
+    Object.keys(process.env).forEach(function (k) {
+      env[k] = process.env[k]
+    })
+    env['HOME'] = path.join(tmpDir, 'bob')
+    var proc = child_process.spawn(path.join(__dirname, 'bin.js'), ['decrypt', p + '.salty', p + '.decrypted.jpg'], {env: env})
+    proc.stderr.pipe(process.stderr)
+    proc.stdout.pipe(process.stdout)
+    proc.once('close', function (code) {
+      assert(!code)
+      done()
+    })
+  })
+  it('verify stream fixture', function (done) {
+    fs.createReadStream(p + '.decrypted.jpg')
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
         assert.equal(data.toString('hex'), '2bce2ffc40e0d90afe577a76db5db4290c48ddf4');

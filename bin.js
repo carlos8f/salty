@@ -5,6 +5,7 @@ var cli = require('./cli')
   , fs = require('fs')
   , http = require('http')
   , https = require('https')
+  , salty = require('./')
 
 var program = require('commander')
   .version(require('./package.json').version)
@@ -90,11 +91,13 @@ program
   .command('encrypt <infile> [outfile]')
   .description('encrypt a file')
   .option('--to <email>', 'email address to encrypt for (salty-id must be imported first)')
+  .option('--nonce <nonce>', 'use a specific nonce (base64-encoded)')
   .action(function (infile, outfile, options) {
     cli.encrypt(
       options.to,
       infile === 'STDIN' ? process.stdin : fs.createReadStream(infile),
-      outfile ? fs.createWriteStream(outfile) : process.stdout
+      outfile ? fs.createWriteStream(outfile) : process.stdout,
+      options.nonce ? salty.decode(options.nonce) : null
     )
   })
 
