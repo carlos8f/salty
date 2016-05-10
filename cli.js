@@ -219,10 +219,21 @@ module.exports = {
       }
     })
   },
-  decrypt: function (inPath, outPath) {
+  decrypt: function (inPath, outPath, force) {
     // decrypt a stream with wallet
     var self = this
     var inStream = fs.createReadStream(inPath)
+    try {
+      fs.statSync(outPath)
+      if (!force) {
+        throw new Error('refusing to overwrite ' + outPath + '. use --force to ignore this.')
+      }
+    }
+    catch (err) {
+      if (err && err.code !== 'ENOENT') {
+        throw err
+      }
+    }
     var outStream = fs.createWriteStream(outPath, {mode: 0o600})
     inStream.pause()
     this.init(function (err, wallet) {
@@ -297,6 +308,19 @@ module.exports = {
       })
       inStream.resume()
     })
+  },
+  ls: function () {
+    var p = path.join(homeDir, '.salty', 'imported_keys')
+    fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
+      if (err && err.code === 'ENOENT') {
+        return withKeys('')
+      }
+      else if (err) return cb(err)
+      withKeys(keys)
+    })
+    function withKeys (keys) {
+      console.log(keys)
+    }
   }
   // sign and verify?
 }

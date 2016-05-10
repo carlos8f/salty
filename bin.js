@@ -47,6 +47,7 @@ program
 
 program
   .command('import <pubkey|url|file>')
+  .description('import a pubkey')
   .action(function (pubkey, options) {
     if (pubkey.indexOf('https:') === 0) {
       withGet(https.get, withPubkey)
@@ -89,40 +90,48 @@ program
   })
 
 program
-  .command('encrypt <infile>')
+  .command('encrypt <infile> [outfile]')
   .description('encrypt a file')
   .option('--to <email>', 'email address to encrypt for (salty-id must be imported first)')
   .option('--nonce <nonce>', 'use a specific nonce (base64-encoded)')
-  .action(function (infile, options) {
-    outfile = infile + '.salty'
+  .option('--force', 'ignore warnings and do it')
+  .action(function (infile, outfile, options) {
+    outfile || (outfile = infile + '.salty')
     cli.encrypt(
       options.to,
       infile,
       outfile,
-      options.nonce ? salty.decode(options.nonce) : null
+      options.nonce ? salty.decode(options.nonce) : null,
+      options.force
     )
   })
 
 program
-  .command('decrypt <infile>')
+  .command('decrypt <infile> [outfile]')
   .description('decrypt a file')
-  .option('--force', 'force opening a non-.salty file')
-  .action(function (infile, options) {
+  .option('--force', 'ignore warnings and do it')
+  .action(function (infile, outfile, options) {
     var ext = path.extname(infile)
-    var outfile
-    if (ext !== '.salty') {
-      if (options.force) {
-        outfile = infile + '-decrypted'
-      }
-      else {
-        throw new Error('<infile> is not a .salty file. --force to ignore this.')
-      }
+    if (!outfile && ext !== '.salty') {
+      throw new Error('<infile> is not a .salty file. specify [outfile] to ignore this.')
     }
-    outfile = infile.replace(/\.salty$/, '')
+    outfile || (outfile = infile.replace(/\.salty$/, ''))
     cli.decrypt(
       infile,
-      outfile
+      outfile,
+      options.force
     )
   })
 
+program
+  .command('ls')
+  .description('list imported keys')
+  .action(function () {
+    cli.ls()
+  })
+
 program.parse(process.argv)
+
+if (!program.args.length) {
+  program.outputHelp();
+}
