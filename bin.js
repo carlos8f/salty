@@ -43,7 +43,7 @@ program
               function withPassphrase () {
                 cli.pubkey(email, passphrase, function (err, pubkey) {
                   if (err) throw err
-                  console.log('\nHint: Share this string with your peers so they can\n\t`salty import <pubkey>`\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
+                  console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
                 })
               }
             })
@@ -60,7 +60,7 @@ program
   .action(function (options) {
     cli.getPubkey(function (err, pubkey) {
       if (err) throw err
-      console.log('\nHint: Share this string with your peers so they can\n\t`salty import <pubkey>`\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
+      console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
     })
   })
 
