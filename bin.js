@@ -43,7 +43,7 @@ program
               function withPassphrase () {
                 cli.pubkey(email, passphrase, function (err, pubkey) {
                   if (err) throw err
-                  console.log('\nHint: Share this string with your friends so they can\n\t`salty import <pubkey>`\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
+                  console.log('\nHint: Share this string with your peers so they can\n\t`salty import <pubkey>`\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
                 })
               }
             })
@@ -60,13 +60,13 @@ program
   .action(function (options) {
     cli.getPubkey(function (err, pubkey) {
       if (err) throw err
-      console.log('\nHint: Share this string with your friends so they can\n\t`salty import <pubkey>`\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
+      console.log('\nHint: Share this string with your peers so they can\n\t`salty import <pubkey>`\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
     })
   })
 
 program
   .command('import <pubkey|url|file>')
-  .description('import a pubkey')
+  .description('import a peer\'s pubkey')
   .action(function (pubkey, options) {
     if (pubkey.indexOf('https:') === 0) {
       withGet(https.get, withPubkey)
@@ -111,8 +111,8 @@ program
 
 program
   .command('encrypt <infile> [outfile]')
-  .description('encrypt a file')
-  .option('--to <email>', 'email address to encrypt for (salty-id must be imported first)')
+  .description('encrypt and sign a file for a peer (specify an imported pubkey using --to=<email>)')
+  .option('--to <email>', 'peer email address to encrypt for (salty-id must be imported first)')
   .option('--nonce <nonce>', 'use a specific nonce (base64-encoded)')
   .option('--force', 'ignore warnings and do it')
   .action(function (infile, outfile, options) {
@@ -128,7 +128,7 @@ program
 
 program
   .command('decrypt <infile> [outfile]')
-  .description('decrypt a file')
+  .description('decrypt and verify a file from a peer')
   .option('--force', 'ignore warnings and do it')
   .action(function (infile, outfile, options) {
     var ext = path.extname(infile)
