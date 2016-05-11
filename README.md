@@ -14,17 +14,19 @@ $ npm install -g salty
 ```
 $ salty
 
-  Usage: salty [options] [command]
+    Usage: salty [options] [command]
 
 
   Commands:
 
-    init                                  initialize a wallet at ~/.salty/id_salty
+    init                                  initialize a wallet at ~/.salty
     id|pubkey                             output your shareable pubkey string
-    import <pubkey|url|file>              import a pubkey
-    encrypt [options] <infile> [outfile]  encrypt a file
-    decrypt [options] <infile> [outfile]  decrypt a file
+    import <pubkey|url|file>              import a peer's pubkey
+    encrypt [options] <infile> [outfile]  encrypt and sign a file for a peer (specify an imported pubkey using --to=<email>)
+    decrypt [options] <infile> [outfile]  decrypt and verify a file from a peer
     ls                                    list imported keys
+    save [indir] [outfile]                password-encrypt the contents of [indir] (defaults to ~/.salty) to PEM [outfile] (defaults to salty.pem)
+    restore <infile> [outdir]             restore contents of password-encrypted PEM <infile> to [outdir] (defaults to ~/.salty)
 
   Options:
 
@@ -32,35 +34,6 @@ $ salty
     -V, --version  output the version number
 ```
 
-### salty encrypt
-
-```
-  Usage: salty encrypt [options] <infile> [outfile]
-
-  encrypt a file
-
-  Options:
-
-    -h, --help       output usage information
-    --to <email>     email address to encrypt for (salty-id must be imported first)
-    --nonce <nonce>  use a specific nonce (base64-encoded)
-    --force          ignore warnings and do it
-```
-
-### salty decrypt
-
-```
-  Usage: salty decrypt [options] <infile> [outfile]
-
-  decrypt a file
-
-  Options:
-
-    -h, --help  output usage information
-    --force  ignore warnings and do it
-```
-
 ## TODO
 
-- stdin parsing / stdout dest
 - signing, detaching, verifying
