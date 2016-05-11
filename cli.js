@@ -10,6 +10,7 @@ var base64url = require('base64-url')
   , tmpDir = require('os').tmpDir()
   , assert = require('assert')
   , prettyjson = require('prettyjson')
+  , prompt = require('cli-prompt')
 
 module.exports = {
   _parsePubkey: function (pubkey) {
@@ -37,7 +38,11 @@ module.exports = {
       parsedEmail: email
     }
   },
-  init: function (cb) {
+  init: function (passphrase, cb) {
+    if (typeof passphrase === 'function') {
+      cb = passphrase
+      passphrase = null
+    }
     // initialize a wallet at ~/.salty/id_salty
     var p = path.join(homeDir, '.salty')
     fs.stat(p, function (err, stat) {
@@ -58,7 +63,7 @@ module.exports = {
         if (err && err.code === 'ENOENT') {
           console.log('file', p, 'does not exist. creating...')
           var wallet = salty.wallet()
-          fs.writeFile(p, wallet.toPEM() + '\n', {mode: 0o600}, function (err) {
+          fs.writeFile(p, wallet.toPEM(passphrase) + '\n', {mode: 0o600}, function (err) {
             if (err) return cb(err)
             cb(null, wallet)
           })
@@ -67,13 +72,19 @@ module.exports = {
         else if (err) return cb(err)
         fs.readFile(p, {encoding: 'utf8'}, function (err, pem) {
           if (err) return cb(err)
-          try {
-            var wallet = salty.fromPEM(pem)
+          if (pem.indexOf('ENCRYPTED') !== -1 && !passphrase) {
+            return prompt.password('Enter your passphrase: ', withPrompt)
           }
-          catch (e) {
-            return cb(e)
+          else withPrompt(passphrase)
+          function withPrompt (passphrase) {
+            try {
+              var wallet = salty.fromPEM(pem, passphrase)
+            }
+            catch (e) {
+              return cb(e)
+            }
+            cb(null, wallet)
           }
-          cb(null, wallet)
         })
       })
     }
@@ -86,34 +97,42 @@ module.exports = {
     catch (e) {
       return cb(e)
     }
-    this.init(function (err, wallet) {
-      if (err) return cb(err)
-      var p = path.join(homeDir, '.salty', 'imported_keys')
-      fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
-        if (err && err.code === 'ENOENT') {
-          return withKeys('')
-        }
-        else if (err) return cb(err)
-        withKeys(keys)
-      })
-      function withKeys (keys) {
-        keys += pubkey.pubkey + '\n'
-        fs.writeFile(p, keys, {mode: 0o600}, cb)
+    var p = path.join(homeDir, '.salty', 'imported_keys')
+    fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
+      if (err && err.code === 'ENOENT') {
+        return withKeys('')
       }
+      else if (err) return cb(err)
+      withKeys(keys)
     })
+    function withKeys (keys) {
+      keys += pubkey.pubkey + '\n'
+      fs.writeFile(p, keys, {mode: 0o600}, function (err) {
+        if (err) return cb(err)
+        console.log('\n\t' + pubkey.pubkey + '\n')
+        cb()
+      })
+    }
   },
-  pubkey: function (email, cb) {
+  pubkey: function (email, passphrase, cb) {
     // output the wallet's pubkey with optional email comment
     var self = this
     if (typeof email === 'function') {
       cb = email
       email = ''
+      passphrase = false
+    }
+    else if (typeof passphrase === 'function') {
+      cb = passphrase
+      passphrase = false
     }
     email || (email = '')
     email = email.trim()
-    this.init(function (err, wallet) {
+    var p = path.join(homeDir, '.salty', 'id_salty.pub')
+
+    this.init(passphrase, function (err, wallet) {
       if (err) return cb(err)
-      var p = path.join(homeDir, '.salty', 'id_salty.pub')
+      
       fs.readFile(p, {encoding: 'utf8'}, function (err, pubkey) {
         var output
         if (err && err.code === 'ENOENT') {
@@ -136,6 +155,10 @@ module.exports = {
         })
       })
     })
+  },
+  getPubkey: function (cb) {
+    var p = path.join(homeDir, '.salty', 'id_salty.pub')
+    fs.readFile(p, {encoding: 'utf8'}, cb)
   },
   encrypt: function (email, inPath, outPath, nonce, force) {
     // encrypt a stream for pubkey

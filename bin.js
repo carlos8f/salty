@@ -7,13 +7,14 @@ var cli = require('./cli')
   , https = require('https')
   , salty = require('./')
   , path = require('path')
+  , pemtools = require('pemtools')
 
 var program = require('commander')
   .version(require('./package.json').version)
 
 program
   .command('init')
-  .description('initialize a wallet at ~/.salty/id_salty')
+  .description('initialize a wallet at ~/.salty')
   .action(function (options) {
     prompt('Enter your name (can be blank): ', function (name) {
       (function promptEmail () {
@@ -27,10 +28,26 @@ program
           if (name) email = '"' + name.replace(/"|'/g, '') + '" <' + parsed.address.toLowerCase() + '>'
           else if (parsed.name) email = '"' + parsed.name.replace(/"|'/g, '') + '" <' + parsed.address.toLowerCase() + '>'
           else email = email.toLowerCase()
-          cli.pubkey(email, function (err, pubkey) {
-            if (err) throw err
-            console.log('\nHint: Share this string with your friends so they can\n\t`salty import <pubkey>`\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
-          })
+          ;(function getPassphrase() {
+            prompt('Enter a passphrase (can be blank): ', true, function (passphrase) {
+              if (passphrase) {
+                prompt('Confirm passphrase: ', true, function (passphrase2) {
+                  if (passphrase2 !== passphrase) {
+                    console.error('Passwords did not match!')
+                    return getPassphrase()
+                  }
+                  withPassphrase()
+                })
+              }
+              else withPassphrase()
+              function withPassphrase () {
+                cli.pubkey(email, passphrase, function (err, pubkey) {
+                  if (err) throw err
+                  console.log('\nHint: Share this string with your friends so they can\n\t`salty import <pubkey>`\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
+                })
+              }
+            })
+          })()
         })
       })()
     })
@@ -41,7 +58,7 @@ program
   .description('output your shareable pubkey string')
   .alias('pubkey')
   .action(function (options) {
-    cli.pubkey(function (err, pubkey) {
+    cli.getPubkey(function (err, pubkey) {
       if (err) throw err
       console.log('\nHint: Share this string with your friends so they can\n\t`salty import <pubkey>`\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
     })
@@ -131,6 +148,15 @@ program
   .description('list imported keys')
   .action(function () {
     cli.ls()
+  })
+
+program
+  .command('save')
+  .description('save your keys and settings')
+  .action(function() {
+    prompt('Encrypt with passphrase (can be blank): ', true, function (passphrase) {
+      
+    })
   })
 
 program.parse(process.argv)
