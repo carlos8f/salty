@@ -152,7 +152,7 @@ program
 
 program
   .command('save [indir] [outfile]')
-  .description('save the contents of [indir] (defaults to ~/.salty) to encrypted [outfile] (defaults to salty.pem)')
+  .description('password-encrypt the contents of [indir] (defaults to ~/.salty) to PEM [outfile] (defaults to salty.pem)')
   .action(function (indir, outfile) {
     (function getPassphrase () {
       prompt.password('Create a passphrase: ', function (passphrase) {
@@ -169,7 +169,7 @@ program
 
 program
   .command('restore <infile> [outdir]')
-  .description('restore contents of encrypted PEM <infile> to [outdir] (defaults to ~/.salty)')
+  .description('restore contents of password-encrypted PEM <infile> to [outdir] (defaults to ~/.salty)')
   .action(function (infile, outdir) {
     cli.restore(infile, outdir)
   })
