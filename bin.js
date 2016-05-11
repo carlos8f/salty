@@ -151,12 +151,27 @@ program
   })
 
 program
-  .command('save')
-  .description('save your keys and settings')
-  .action(function() {
-    prompt('Encrypt with passphrase (can be blank): ', true, function (passphrase) {
-      
-    })
+  .command('save [indir] [outfile]')
+  .description('save the contents of [indir] (defaults to ~/.salty) to encrypted [outfile] (defaults to salty.pem)')
+  .action(function (indir, outfile) {
+    (function getPassphrase () {
+      prompt.password('Create a passphrase: ', function (passphrase) {
+        prompt('Confirm passphrase: ', true, function (passphrase2) {
+          if (passphrase2 !== passphrase) {
+            console.error('Passwords did not match!')
+            return getPassphrase()
+          } 
+          cli.save(passphrase, indir, outfile)
+        })
+      })
+    })()
+  })
+
+program
+  .command('restore <infile> [outdir]')
+  .description('restore contents of encrypted PEM <infile> to [outdir] (defaults to ~/.salty)')
+  .action(function (infile, outdir) {
+    cli.restore(infile, outdir)
   })
 
 program.parse(process.argv)

@@ -11,6 +11,10 @@ var base64url = require('base64-url')
   , assert = require('assert')
   , prettyjson = require('prettyjson')
   , prompt = require('cli-prompt')
+  , tar = require('tar')
+  , fstream = require('fstream')
+  , pemtools = require('pemtools')
+  , zlib = require('zlib')
 
 module.exports = {
   _parsePubkey: function (pubkey) {
@@ -149,7 +153,7 @@ module.exports = {
           }
           output = [parsed.tag, base64url.encode(wallet.identity.toBuffer()), email || parsed.email].join(' ')
         }
-        fs.writeFile(p, output + '\n', function (err) {
+        fs.writeFile(p, output + '\n', {mode: 0o644}, function (err) {
           if (err) return cb(err)
           cb(null, output)
         })
@@ -374,6 +378,72 @@ module.exports = {
     function withKeys (keys) {
       console.log(keys)
     }
+  },
+  save: function (passphrase, inDir, outPath) {
+    var p = inDir || path.join(homeDir, '.salty')
+    var dest = outPath || './salty.pem'
+    fs.stat(dest, function (err, stat) {
+      if (err && err.code === 'ENOENT') {
+        return withCheck()
+      }
+      else if (err) throw err
+      throw new Error('abort: refusing to overwrite ' + dest)
+    })
+    function withCheck() {
+      var tarStream = tar.Pack({fromBase: true})
+      var gzipStream = tarStream.pipe(zlib.createGzip())
+      var gzipChunks = []
+      gzipStream.on('data', function (chunk) {
+        gzipChunks.push(chunk)
+      })
+      gzipStream.on('end', function () {
+        var zlibBuffer = Buffer.concat(gzipChunks)
+        var pem = pemtools(zlibBuffer, 'SALTY WALLET', passphrase).toString()
+        fs.writeFile(dest, pem + '\n', {mode: 0o600}, function (err) {
+          if (err) throw err
+          console.log('saved to', dest)
+        })
+      })
+      var reader = fstream.Reader({path: p, type: 'Directory', sort: 'alpha', mode: '700'})
+      reader.pipe(tarStream)
+    }
+  },
+  restore: function (inPath, outDir) {
+    inPath || (inPath = './salty.pem')
+    fs.readFile(inPath, {encoding: 'utf8'}, function (err, pem) {
+      if (err) throw err
+      var passphrase = null
+      if (pem.indexOf('ENCRYPTED') !== -1) {
+        prompt.password('Enter your passphrase: ', function (passphrase) {
+          var parsedPem = pemtools(pem, 'SALTY WALLET', passphrase)
+          withParsed(parsedPem)
+        })
+      }
+      else {
+        var parsedPem = pemtools(pem, 'SALTY WALLET')
+        withParsed(parsedPem)
+      }
+      var dest = outDir || path.join(homeDir, '.salty')
+      function withParsed (pem) {
+        fs.stat(dest, function (err, stat) {
+          if (err && err.code === 'ENOENT') {
+            return withCheck(pem)
+          }
+          else if (err) throw err
+          throw new Error('abort: refusing to overwrite ' + dest + '. please move it before proceeding.')
+        })
+      }
+      function withCheck (pem) {
+        var extractStream = tar.Extract({path: dest, mode: '700'})
+        var gunzipStream = zlib.createGunzip()
+        extractStream.on('end', function () {
+          console.log('restored to', dest)
+        })
+        gunzipStream.pipe(extractStream)
+        gunzipStream.write(pem.toBuffer())
+        gunzipStream.end()
+      }
+    })
   }
   // sign and verify?
 }
