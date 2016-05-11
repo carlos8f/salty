@@ -234,6 +234,7 @@ module.exports = {
           fs.createReadStream(tmp)
             .pipe(fs.createWriteStream(outPath, {mode: 0o600}))
             .once('finish', function () {
+              fs.unlinkSync(tmp)
               console.log('encrypted to', outPath)
               console.log(prettyjson.render(header, {
                 noColor: false,
