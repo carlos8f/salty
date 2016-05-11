@@ -62,8 +62,5 @@ $ salty
 
 ## TODO
 
-- passphrase wallet encryption and removal (decryption)
 - stdin parsing / stdout dest
 - signing, detaching, verifying
-- pem output option
-- dump/restore (tar the wallet dir?)
