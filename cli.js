@@ -192,6 +192,7 @@ module.exports = {
         if (typeof header[parts[0].toLowerCase()] !== 'undefined') throw new Error('cannot redefine header')
         header[parts[0].toLowerCase()] = parts[1]
       })
+      var header_length = parts[1].length + 4
       if (!header['from-salty-id']) throw new Error('from-salty-id header required')
       if (!header['nonce']) throw new Error('nonce header required')
       try {
@@ -226,10 +227,10 @@ module.exports = {
           throw new Error('mismatched header ' + k + ', value ' + header[k] + ' vs. signed header ' + signed_header[k])
         }
       })
-      if (noTranslate) return cb(null, header)
+      if (noTranslate) return cb(null, header, header_length)
       self.translateHeader(header, function (err, header) {
         if (err) throw new Error('error translating headers')
-        cb(null, header)
+        cb(null, header, header_length)
       })
     })
   },
@@ -403,11 +404,11 @@ module.exports = {
     inStream.pause()
     this.init(function (err, wallet) {
       if (err) throw err
-      self.headers(inPath, true, function (err, header) {
+      self.headers(inPath, true, function (err, header, header_length) {
         if (err) throw err
-        withHeaders(header)
+        withHeaders(header, header_length)
       })
-      function withHeaders (header) {
+      function withHeaders (header, header_length) {
         var str = ''
         var chunks = []
         var header
@@ -416,7 +417,7 @@ module.exports = {
         if (header['to-salty-id'] && header['to-salty-id'] !== wallet.identity.toString()) {
           throw new Error('message addressed to some other salty-id')
         }
-        var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
+        var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size - header_length, width: 80 })
         var identity = salty.identity(header['from-salty-id'])
         var nonce = salty.decode(header['nonce'])
         var outStream = fs.createWriteStream(outPath, {mode: 0o600})
@@ -455,19 +456,15 @@ module.exports = {
         })
         blocked.pipe(decryptor)
         var bytesRead = 0
+        var finalBlock = []
         inStream.on('data', function (chunk) {
           bytesRead += chunk.length
           if (bytesRead < inStat.size - 1000) return blocked.write(chunk)
-          var cursor = 0
-          var match = false
-          while (!match) {
-            var buf = chunk.slice(cursor, cursor + 4)
-            if (buf.toString() === '\r\n\r\n') {
-              match = true
-            }
-            cursor++
-          }
-          blocked.write(chunk.slice(0, cursor - 1))
+          finalBlock.push(chunk)
+        })
+        inStream.once('end', function () {
+          var buf = Buffer.concat(finalBlock)
+          blocked.write(buf.slice(0, buf.length - header_length))
           blocked.end()
         })
         inStream.resume()
