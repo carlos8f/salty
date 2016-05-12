@@ -144,7 +144,12 @@ module.exports = {
       keys = keys.split('\n')
       var recipients = Object.create(null)
       keys.forEach(function (line) {
-        var parsed = self._parsePubkey(line)
+        try {
+          var parsed = self._parsePubkey(line)
+        }
+        catch (e) {
+          return
+        }
         recipients[parsed.identity.toString()] = parsed
       })
       cb(null, recipients)

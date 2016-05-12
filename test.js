@@ -169,10 +169,10 @@ describe('tests', function () {
   })
   it('verify encrypted', function (done) {
     fs.unlinkSync(p)
-    child_process.spawn('tail', ['-n+5', p + '.salty']).stdout
+    child_process.spawn('tail', ['-c', 842, p + '.salty']).stdout
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
-        assert.equal(data.toString('hex'), 'dbccdcb74021274a8678c55efa6225a5f853354c');
+        assert.equal(data.toString('hex'), '41da156c06abe5fdfd643fc09952b78f8d64d276');
         done();
       });
   });
