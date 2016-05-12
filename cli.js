@@ -181,6 +181,7 @@ module.exports = {
     }
     var self = this
     child_process.exec('tail -c 1000 ' + inPath, function (err, stdout, stderr) {
+      assert.ifError(err)
       var header = Object.create(null)
       var full = stdout.toString()
       var parts = full.split('\r\n\r\n')
@@ -382,6 +383,7 @@ module.exports = {
         })
         inStream.pipe(shaStream)
         inStream.pipe(new BlockStream(65536, {nopad: true})).pipe(encryptor).pipe(outStream)
+        inStream.resume()
       }
     })
   },
