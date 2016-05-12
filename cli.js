@@ -54,7 +54,7 @@ module.exports = {
     fs.stat(p, function (err, stat) {
       if (err && err.code === 'ENOENT') {
         console.log('dir', p, 'does not exist. creating...')
-        fs.mkdir(p, 0o700, function (err) {
+        fs.mkdir(p, parseInt('0700', 8), function (err) {
           if (err) return cb(err)
           withHome()
         })
@@ -69,7 +69,7 @@ module.exports = {
         if (err && err.code === 'ENOENT') {
           console.log('file', p, 'does not exist. creating...')
           var wallet = salty.wallet()
-          fs.writeFile(p, wallet.toPEM(passphrase) + '\n', {mode: 0o600}, function (err) {
+          fs.writeFile(p, wallet.toPEM(passphrase) + '\n', {mode: parseInt('0600', 8)}, function (err) {
             if (err) return cb(err)
             cb(null, wallet)
           })
@@ -113,7 +113,7 @@ module.exports = {
     })
     function withKeys (keys) {
       keys += pubkey.pubkey + '\n'
-      fs.writeFile(p, keys, {mode: 0o600}, function (err) {
+      fs.writeFile(p, keys, {mode: parseInt('0600', 8)}, function (err) {
         if (err) return cb(err)
         console.log('\n\t' + pubkey.pubkey + '\n')
         cb()
@@ -269,7 +269,7 @@ module.exports = {
           }
           output = [parsed.tag, base64url.encode(wallet.identity.toBuffer()), email || parsed.email].join(' ')
         }
-        fs.writeFile(p, output + '\n', {mode: 0o644}, function (err) {
+        fs.writeFile(p, output + '\n', {mode: parseInt('0644', 8)}, function (err) {
           if (err) return cb(err)
           cb(null, output)
         })
@@ -343,7 +343,7 @@ module.exports = {
           })
           return out
         }
-        var outStream = fs.createWriteStream(outPath, {mode: 0o600})
+        var outStream = fs.createWriteStream(outPath, {mode: parseInt('0600', 8)})
         process.on('uncaughtException', function (err) {
           try {
             fs.unlinkSync(outPath)
@@ -420,7 +420,7 @@ module.exports = {
         var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size - header_length, width: 80 })
         var identity = salty.identity(header['from-salty-id'])
         var nonce = salty.decode(header['nonce'])
-        var outStream = fs.createWriteStream(outPath, {mode: 0o600})
+        var outStream = fs.createWriteStream(outPath, {mode: parseInt('0600', 8)})
         var finalSize = 0
         outStream.once('finish', function () {
           var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: finalSize, width: 80 })
@@ -504,12 +504,12 @@ module.exports = {
       gzipStream.on('end', function () {
         var zlibBuffer = Buffer.concat(gzipChunks)
         var pem = pemtools(zlibBuffer, 'SALTY WALLET', passphrase).toString()
-        fs.writeFile(dest, pem + '\n', {mode: 0o600}, function (err) {
+        fs.writeFile(dest, pem + '\n', {mode: parseInt('0600', 8)}, function (err) {
           if (err) throw err
           console.log('saved to', dest)
         })
       })
-      var reader = fstream.Reader({path: p, type: 'Directory', sort: 'alpha', mode: '700'})
+      var reader = fstream.Reader({path: p, type: 'Directory', sort: 'alpha', mode: parseInt('0700', 8)})
       reader.pipe(tarStream)
     }
   },
@@ -539,7 +539,7 @@ module.exports = {
         })
       }
       function withCheck (pem) {
-        var extractStream = tar.Extract({path: dest, mode: '700'})
+        var extractStream = tar.Extract({path: dest, mode: parseInt('0700', 8)})
         var gunzipStream = zlib.createGunzip()
         extractStream.on('end', function () {
           console.log('restored to', dest)
