@@ -1,6 +1,6 @@
 {
   "name": "salty",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "A practical, compact CLI crypto system based on TweetNaCl, featuring public key sharing and zero-password peer stream encryption.",
   "main": "index.js",
   "bin": "bin.js",
