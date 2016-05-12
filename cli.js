@@ -15,6 +15,7 @@ var base64url = require('base64-url')
   , fstream = require('fstream')
   , pemtools = require('pemtools')
   , zlib = require('zlib')
+  , child_process = require('child_process')
 
 module.exports = {
   _parsePubkey: function (pubkey) {
@@ -118,6 +119,106 @@ module.exports = {
       })
     }
   },
+  _getRecipients: function (cb) {
+    var self = this
+    var p = path.join(homeDir, '.salty', 'id_salty.pub')
+    fs.readFile(p, {encoding: 'utf8'}, function (err, pubkey) {
+      if (err && err.code === 'ENOENT') {
+        return withPubkey('')
+      }
+      else if (err) return cb(err)
+      withPubkey(pubkey.trim())
+    })
+    function withPubkey (pubkey) {
+      p = path.join(homeDir, '.salty', 'imported_keys')
+      fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
+        if (err && err.code === 'ENOENT') {
+          return withKeys(pubkey)
+        }
+        else if (err) return cb(err)
+        withKeys(pubkey + '\n' + keys.trim())
+      })
+    }
+    function withKeys (keys) {
+      keys = keys.split('\n')
+      var recipients = Object.create(null)
+      keys.forEach(function (line) {
+        var parsed = self._parsePubkey(line)
+        recipients[parsed.identity.toString()] = parsed
+      })
+      cb(null, recipients)
+    }
+  },
+  translateHeader: function (header, cb) {
+    var self = this
+    self._getRecipients(function (err, recipients) {
+      if (err) return cb(err)
+      if (header['from-salty-id'] && recipients[header['from-salty-id']]) {
+        header['from-salty-id'] = recipients[header['from-salty-id']].email
+      }
+      if (header['to-salty-id'] && recipients[header['to-salty-id']]) {
+        header['to-salty-id'] = recipients[header['to-salty-id']].email
+      }
+      cb(null, header)
+    })
+  },
+  headers: function (inPath) {
+    var self = this
+    child_process.exec('head -n+5 ' + inPath, function (err, stdout, stderr) {
+      var header = Object.create(null)
+      stdout.toString().split('\r\n').forEach(function (line) {
+        if (!line.trim()) return
+        var parts = line.trim().split(': ')
+        if (parts.length !== 2) throw new Error('failed to read header')
+        if (typeof header[parts[0].toLowerCase()] !== 'undefined') throw new Error('cannot redefine header')
+        header[parts[0].toLowerCase()] = parts[1]
+      })
+      if (!header['from-salty-id']) throw new Error('from-salty-id header required')
+      if (!header['nonce']) throw new Error('nonce header required')
+      try {
+        var identity = salty.identity(header['from-salty-id'])
+      }
+      catch (e) {
+        throw new Error('invalid from-salty-id')
+      }
+      try {
+        var to_identity = salty.identity(header['to-salty-id'])
+      }
+      catch (e) {
+        throw new Error('invalid to-salty-id')
+      }
+      var nonce = salty.decode(header['nonce'])
+      if (!header['hash']) throw new Error('hash header is required')
+      if (!header['signature']) throw new Error('signature header is required')
+      var signedStr = identity.verify(Buffer(header['signature'], 'base64'))
+      if (!signedStr) {
+        throw new Error('signature verification failed')
+      }
+      var signed_header = Object.create(null)
+      signedStr.toString('utf8').split('\r\n').forEach(function (line) {
+        if (!line) return
+        var parts = line.split(': ')
+        if (parts.length !== 2) throw new Error('failed to read signed header')
+        if (typeof signed_header[parts[0].toLowerCase()] !== 'undefined') throw new Error('cannot redefine signed header')
+        signed_header[parts[0].toLowerCase()] = parts[1]
+      })
+      Object.keys(header).forEach(function (k) {
+        if (k !== 'signature' && signed_header[k] !== header[k]) {
+          throw new Error('mismatched header ' + k + ', value ' + header[k] + ' vs. signed header ' + signed_header[k])
+        }
+      })
+      header['signature'] = 'OK'
+      self.translateHeader(header, function (err, header) {
+        if (err) throw new Error('error translating headers')
+        console.log(prettyjson.render(header, {
+          noColor: false,
+          keysColor: 'blue',
+          dashColor: 'magenta',
+          stringColor: 'grey'
+        }))
+      })
+    })
+  },
   pubkey: function (email, passphrase, cb) {
     // output the wallet's pubkey with optional email comment
     var self = this
@@ -186,6 +287,14 @@ module.exports = {
     var outStream = fs.createWriteStream(outPath, {mode: 0o600})
     inStream.pause()
 
+    process.on('uncaughtException', function (err) {
+      try {
+        fs.unlinkSync(outPath)
+      }
+      catch (e) {}
+      throw err
+    })
+
     this.init(function (err, wallet) {
       if (err) throw err
       if (!email) return withIdentity(wallet.identity)
@@ -194,7 +303,10 @@ module.exports = {
         if (err && err.code === 'ENOENT') {
           return withKeys('')
         }
-        else if (err) return cb(err)
+        else if (err) {
+          fs.unlinkSync(outPath)
+          return cb(err)
+        }
         withKeys(keys)
       })
       function withKeys (keys) {
@@ -203,7 +315,7 @@ module.exports = {
         keys.forEach(function (key) {
           if (!key) return
           var parsed = self._parsePubkey(key)
-          if (parsed.parsedEmail.address === parsedEmail.address) {
+          if (parsed.parsedEmail.address.toLowerCase() === parsedEmail.address.toLowerCase()) {
             chosen = parsed.identity
           }
         })
@@ -230,18 +342,28 @@ module.exports = {
         var shaStream = crypto.createHash('sha256')
         var tmp = path.join(tmpDir, Math.random().toString(36).substring(2))
         var tmpStream = fs.createWriteStream(tmp, {mode: 0o600})
+        process.on('uncaughtException', function (err) {
+          try {
+            fs.unlinkSync(tmp)
+            fs.unlinkSync(outPath)
+          }
+          catch (e) {}
+          throw err
+        })
         tmpStream.once('finish', function () {
           fs.createReadStream(tmp)
             .pipe(fs.createWriteStream(outPath, {mode: 0o600}))
             .once('finish', function () {
               fs.unlinkSync(tmp)
               console.log('encrypted to', outPath)
-              console.log(prettyjson.render(header, {
-                noColor: false,
-                keysColor: 'blue',
-                dashColor: 'magenta',
-                stringColor: 'grey'
-              }))
+              self.translateHeader(header, function (err, header) {
+                console.log(prettyjson.render(header, {
+                  noColor: false,
+                  keysColor: 'blue',
+                  dashColor: 'magenta',
+                  stringColor: 'grey'
+                }))
+              })
             })
         })
         outStream.once('finish', function () {
@@ -346,12 +468,14 @@ module.exports = {
                     throw new Error('wrote bad sha ' + sha.toString('base64') + ' != ' + header['hash'])
                   }
                   console.log('decrypted to', outPath)
-                  console.log(prettyjson.render(header, {
-                    noColor: false,
-                    keysColor: 'blue',
-                    dashColor: 'magenta',
-                    stringColor: 'grey'
-                  }))
+                  self.translateHeader(header, function (err, header) {
+                    console.log(prettyjson.render(header, {
+                      noColor: false,
+                      keysColor: 'blue',
+                      dashColor: 'magenta',
+                      stringColor: 'grey'
+                    }))
+                  })
                 })
             })
             blocked = new BlockStream(65536, {nopad: true})

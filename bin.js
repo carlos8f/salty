@@ -174,6 +174,13 @@ program
     cli.restore(infile, outdir)
   })
 
+program
+  .command('headers <infile>')
+  .description('view the headers of a .salty file')
+  .action(function (infile) {
+    cli.headers(infile)
+  })
+
 program.parse(process.argv)
 
 if (!program.args.length) {
