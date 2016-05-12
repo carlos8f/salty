@@ -159,6 +159,7 @@ module.exports = {
       if (header['to-salty-id'] && recipients[header['to-salty-id']]) {
         header['to-salty-id'] = recipients[header['to-salty-id']].email
       }
+      header['signature'] = 'OK'
       cb(null, header)
     })
   },
@@ -207,7 +208,6 @@ module.exports = {
           throw new Error('mismatched header ' + k + ', value ' + header[k] + ' vs. signed header ' + signed_header[k])
         }
       })
-      header['signature'] = 'OK'
       self.translateHeader(header, function (err, header) {
         if (err) throw new Error('error translating headers')
         console.log(prettyjson.render(header, {
