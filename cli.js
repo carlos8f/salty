@@ -169,11 +169,18 @@ module.exports = {
       cb(null, header)
     })
   },
-  headers: function (inPath) {
+  headers: function (inPath, noTranslate, cb) {
+    if (typeof noTranslate === 'function') {
+      cb = noTranslate
+      noTranslate = false
+    }
     var self = this
-    child_process.exec('head -n+5 ' + inPath, function (err, stdout, stderr) {
+    child_process.exec('tail -c 1000 ' + inPath, function (err, stdout, stderr) {
       var header = Object.create(null)
-      stdout.toString().split('\r\n').forEach(function (line) {
+      var full = stdout.toString()
+      var parts = full.split('\r\n\r\n')
+      assert(parts.length > 1)
+      parts[1].split('\r\n').forEach(function (line) {
         if (!line.trim()) return
         var parts = line.trim().split(': ')
         if (parts.length !== 2) throw new Error('failed to read header')
@@ -214,14 +221,10 @@ module.exports = {
           throw new Error('mismatched header ' + k + ', value ' + header[k] + ' vs. signed header ' + signed_header[k])
         }
       })
+      if (noTranslate) return cb(null, header)
       self.translateHeader(header, function (err, header) {
         if (err) throw new Error('error translating headers')
-        console.log(prettyjson.render(header, {
-          noColor: false,
-          keysColor: 'blue',
-          dashColor: 'magenta',
-          stringColor: 'grey'
-        }))
+        cb(null, header)
       })
     })
   },
@@ -301,10 +304,7 @@ module.exports = {
         if (err && err.code === 'ENOENT') {
           return withKeys('')
         }
-        else if (err) {
-          fs.unlinkSync(outPath)
-          return cb(err)
-        }
+        else if (err) throw err
         withKeys(keys)
       })
       function withKeys (keys) {
@@ -345,58 +345,36 @@ module.exports = {
           catch (e) {}
           throw err
         })
-        var shaStream = crypto.createHash('sha256')
-        var tmp = path.join(tmpDir, Math.random().toString(36).substring(2))
-        var tmpStream = fs.createWriteStream(tmp, {mode: 0o600})
-        process.on('uncaughtException', function (err) {
-          try {
-            fs.unlinkSync(tmp)
-            fs.unlinkSync(outPath)
-          }
-          catch (e) {}
-          throw err
-        })
-        tmpStream.once('finish', function () {
-          console.log('moving tmp file...')
-          child_process.spawn('mv', ['-f', tmp, outPath])
-            .once('exit', function (code) {
-              if (code) {
-                throw new Error('non-zero status from mv: ' + code)
-              }
-              console.log('encrypted to', outPath)
-              self.translateHeader(header, function (err, header) {
-                if (err) throw new Error('error translating headers')
-                console.log(prettyjson.render(header, {
-                  noColor: false,
-                  keysColor: 'blue',
-                  dashColor: 'magenta',
-                  stringColor: 'grey'
-                }))
-              })
-            })
-        })
+
         outStream.once('finish', function () {
-          var bar = new Progress('  writing headers [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
           var headerStr = writeHeader()
           assert(header['Hash'])
           header['Signature'] = wallet.sign(Buffer(headerStr)).toString('base64')
           var finalHeader = writeHeader()
-          tmpStream.write(finalHeader)
-          tmpStream.write('\r\n')
-          var ctxt = fs.createReadStream(outPath)
-          ctxt.pipe(tmpStream)
-          ctxt.on('data', function (chunk) {
-            bar.tick(chunk.length)
+          console.log('writing header...')
+          fs.writeFile(outPath, '\r\n\r\n' + finalHeader, {flag: 'a'}, function (err) {
+            if (err) throw err
+            console.log('encrypted to', outPath)
+            self.translateHeader(header, function (err, header) {
+              if (err) throw new Error('error translating headers')
+              console.log(prettyjson.render(header, {
+                noColor: false,
+                keysColor: 'blue',
+                dashColor: 'magenta',
+                stringColor: 'grey'
+              }))
+            })
           })
         })
-        shaStream.once('data', function (sha) {
-          header['Hash'] = sha.toString('base64')
-        })
-        inStream.pipe(shaStream)
         var bar = new Progress('  encrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
         encryptor.on('data', function (chunk) {
           bar.tick(chunk.length)
         })
+        var shaStream = crypto.createHash('sha256')
+        shaStream.once('data', function (sha) {
+          header['Hash'] = sha.toString('base64')
+        })
+        inStream.pipe(shaStream)
         inStream.pipe(new BlockStream(65536, {nopad: true})).pipe(encryptor).pipe(outStream)
       }
     })
@@ -417,102 +395,78 @@ module.exports = {
         throw err
       }
     }
-    var outStream = fs.createWriteStream(outPath, {mode: 0o600})
     inStream.pause()
     this.init(function (err, wallet) {
       if (err) throw err
-      var str = ''
-      var chunks = []
-      var header
-      var decryptor
-      var blocked
-      var sha = crypto.createHash('sha1')
-      var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
-      inStream.on('data', function (chunk) {
-        if (!decryptor) {
-          str += chunk.toString()
-          chunks.push(chunk)
-          var match = str.match('\r\n\r\n')
-          if (match) {
-            header = Object.create(null)
-            var parts = str.split('\r\n\r\n')
-            var header_lines = parts.shift().split('\r\n')
-            if (header_lines.length < 5) throw new Error('failed to read header')
-            var header_length = 2
-            header_lines.forEach(function (line) {
-              var parts = line.split(': ')
-              if (parts.length !== 2) throw new Error('failed to read header')
-              if (typeof header[parts[0].toLowerCase()] !== 'undefined') throw new Error('cannot redefine header')
-              header[parts[0].toLowerCase()] = parts[1]
-              header_length += line.length + 2
-            })
-            if (!header['from-salty-id']) throw new Error('from-salty-id header required')
-            if (!header['nonce']) throw new Error('nonce header required')
-            try {
-              var identity = salty.identity(header['from-salty-id'])
-            }
-            catch (e) {
-              throw new Error('invalid from-salty-id')
-            }
-            if (header['to-salty-id'] && header['to-salty-id'] !== wallet.identity.toString()) {
-              throw new Error('message addressed to some other salty-id')
-            }
-            var nonce = salty.decode(header['nonce'])
-            if (!header['hash']) throw new Error('hash header is required')
-            if (!header['signature']) throw new Error('signature header is required')
-            var signedStr = identity.verify(Buffer(header['signature'], 'base64'))
-            if (!signedStr) {
-              throw new Error('signature verification failed')
-            }
-            var signed_header = Object.create(null)
-            signedStr.toString('utf8').split('\r\n').forEach(function (line) {
-              if (!line) return
-              var parts = line.split(': ')
-              if (parts.length !== 2) throw new Error('failed to read signed header')
-              if (typeof signed_header[parts[0].toLowerCase()] !== 'undefined') throw new Error('cannot redefine signed header')
-              signed_header[parts[0].toLowerCase()] = parts[1]
-            })
-            Object.keys(header).forEach(function (k) {
-              if (k !== 'signature' && signed_header[k] !== header[k]) {
-                throw new Error('mismatched header ' + k + ', value ' + header[k] + ' vs. signed header ' + signed_header[k])
-              }
-            })
-            var shaStream = crypto.createHash('sha256')
-            outStream.on('data', function (chunk) {
-              bar.tick(chunk.size)
-            })
-            outStream.once('finish', function () {
-              console.log('done. verifying...')
-              fs.createReadStream(outPath)
-                .pipe(shaStream)
-                .once('data', function (sha) {
-                  if (sha.toString('base64') !== header['hash']) {
-                    fs.unlinkSync(outPath)
-                    throw new Error('wrote bad sha ' + sha.toString('base64') + ' != ' + header['hash'])
-                  }
-                  console.log('decrypted to', outPath)
-                  self.translateHeader(header, function (err, header) {
-                    if (err) throw new Error('error translating headers')
-                    console.log(prettyjson.render(header, {
-                      noColor: false,
-                      keysColor: 'blue',
-                      dashColor: 'magenta',
-                      stringColor: 'grey'
-                    }))
-                  })
-                })
-            })
-            blocked = new BlockStream(65536, {nopad: true})
-            decryptor = wallet.peerStream(nonce, identity)
-            decryptor.pipe(outStream)
-            blocked.pipe(decryptor)
-            var buf = Buffer.concat(chunks).slice(header_length)
-            blocked.write(buf)
-            inStream.pipe(blocked)
-          }
-        }
+      self.headers(inPath, true, function (err, header) {
+        if (err) throw err
+        withHeaders(header)
       })
-      inStream.resume()
+      function withHeaders (header) {
+        var str = ''
+        var chunks = []
+        var header
+        var decryptor
+        var blocked
+        if (header['to-salty-id'] && header['to-salty-id'] !== wallet.identity.toString()) {
+          throw new Error('message addressed to some other salty-id')
+        }
+        var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
+        var identity = salty.identity(header['from-salty-id'])
+        var nonce = salty.decode(header['nonce'])
+        var outStream = fs.createWriteStream(outPath, {mode: 0o600})
+        var finalSize = 0
+        outStream.once('finish', function () {
+          var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: finalSize, width: 80 })
+          var shaStream = crypto.createHash('sha256')
+          fs.createReadStream(outPath)
+            .on('data', function (chunk) {
+              bar.tick(chunk.length)
+            })
+            .pipe(shaStream)
+            .once('data', function (sha) {
+              if (sha.toString('base64') !== header['hash']) {
+                fs.unlinkSync(outPath)
+                throw new Error('wrote bad sha ' + sha.toString('base64') + ' != ' + header['hash'])
+              }
+              console.log('decrypted to', outPath)
+              self.translateHeader(header, function (err, header) {
+                if (err) throw new Error('error translating headers')
+                console.log(prettyjson.render(header, {
+                  noColor: false,
+                  keysColor: 'blue',
+                  dashColor: 'magenta',
+                  stringColor: 'grey'
+                }))
+              })
+            })
+        })
+        blocked = new BlockStream(65536, {nopad: true})
+        decryptor = wallet.peerStream(nonce, identity)
+        decryptor.pipe(outStream)
+        decryptor.on('data', function (chunk) {
+          finalSize += chunk.length
+          bar.tick(chunk.length)
+        })
+        blocked.pipe(decryptor)
+        var bytesRead = 0
+        inStream.on('data', function (chunk) {
+          bytesRead += chunk.length
+          if (bytesRead < inStat.size - 1000) return blocked.write(chunk)
+          var cursor = 0
+          var match = false
+          while (!match) {
+            var buf = chunk.slice(cursor, cursor + 4)
+            if (buf.toString() === '\r\n\r\n') {
+              match = true
+            }
+            cursor++
+          }
+          blocked.write(chunk.slice(0, cursor - 1))
+          blocked.end()
+        })
+        inStream.resume()
+      }
     })
   },
   ls: function () {

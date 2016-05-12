@@ -8,6 +8,7 @@ var cli = require('./cli')
   , salty = require('./')
   , path = require('path')
   , pemtools = require('pemtools')
+  , prettyjson = require('prettyjson')
 
 var program = require('commander')
   .version(require('./package.json').version)
@@ -176,13 +177,28 @@ program
 
 program
   .command('headers <infile>')
+  .alias('header')
   .description('view the headers of a .salty file')
   .action(function (infile) {
-    cli.headers(infile)
+    cli.headers(infile, function (err, header) {
+      if (err) throw err
+      console.log(prettyjson.render(header, {
+        noColor: false,
+        keysColor: 'blue',
+        dashColor: 'magenta',
+        stringColor: 'grey'
+      }))
+    })
+  })
+
+program
+  .command('*')
+  .action(function (infile) {
+    program.outputHelp();
   })
 
 program.parse(process.argv)
 
 if (!program.args.length) {
-  program.outputHelp();
+  program.outputHelp()
 }
