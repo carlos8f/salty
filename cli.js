@@ -16,6 +16,7 @@ var base64url = require('base64-url')
   , pemtools = require('pemtools')
   , zlib = require('zlib')
   , child_process = require('child_process')
+  , Progress = require('progress')
 
 module.exports = {
   _parsePubkey: function (pubkey) {
@@ -149,8 +150,13 @@ module.exports = {
       cb(null, recipients)
     }
   },
-  translateHeader: function (header, cb) {
+  translateHeader: function (_header, cb) {
     var self = this
+    var header = Object.create(null)
+    Object.keys(_header).forEach(function (k) {
+      var val = _header[k]
+      header[k.toLowerCase()] = val
+    })
     self._getRecipients(function (err, recipients) {
       if (err) return cb(err)
       if (header['from-salty-id'] && recipients[header['from-salty-id']]) {
@@ -283,17 +289,9 @@ module.exports = {
       var parsedEmail = addrs.parseOneAddress(email)
       if (!parsedEmail) throw new Error('invalid email address: ' + email)
     }
+    var inStat = fs.statSync(inPath)
     var inStream = fs.createReadStream(inPath)
-    var outStream = fs.createWriteStream(outPath, {mode: 0o600})
     inStream.pause()
-
-    process.on('uncaughtException', function (err) {
-      try {
-        fs.unlinkSync(outPath)
-      }
-      catch (e) {}
-      throw err
-    })
 
     this.init(function (err, wallet) {
       if (err) throw err
@@ -339,6 +337,14 @@ module.exports = {
           })
           return out
         }
+        var outStream = fs.createWriteStream(outPath, {mode: 0o600})
+        process.on('uncaughtException', function (err) {
+          try {
+            fs.unlinkSync(outPath)
+          }
+          catch (e) {}
+          throw err
+        })
         var shaStream = crypto.createHash('sha256')
         var tmp = path.join(tmpDir, Math.random().toString(36).substring(2))
         var tmpStream = fs.createWriteStream(tmp, {mode: 0o600})
@@ -351,12 +357,15 @@ module.exports = {
           throw err
         })
         tmpStream.once('finish', function () {
-          fs.createReadStream(tmp)
-            .pipe(fs.createWriteStream(outPath, {mode: 0o600}))
-            .once('finish', function () {
-              fs.unlinkSync(tmp)
+          console.log('moving tmp file...')
+          child_process.spawn('mv', ['-f', tmp, outPath])
+            .once('exit', function (code) {
+              if (code) {
+                throw new Error('non-zero status from mv: ' + code)
+              }
               console.log('encrypted to', outPath)
               self.translateHeader(header, function (err, header) {
+                if (err) throw new Error('error translating headers')
                 console.log(prettyjson.render(header, {
                   noColor: false,
                   keysColor: 'blue',
@@ -367,6 +376,7 @@ module.exports = {
             })
         })
         outStream.once('finish', function () {
+          var bar = new Progress('  writing headers [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
           var headerStr = writeHeader()
           assert(header['Hash'])
           header['Signature'] = wallet.sign(Buffer(headerStr)).toString('base64')
@@ -375,11 +385,18 @@ module.exports = {
           tmpStream.write('\r\n')
           var ctxt = fs.createReadStream(outPath)
           ctxt.pipe(tmpStream)
+          ctxt.on('data', function (chunk) {
+            bar.tick(chunk.length)
+          })
         })
         shaStream.once('data', function (sha) {
           header['Hash'] = sha.toString('base64')
         })
         inStream.pipe(shaStream)
+        var bar = new Progress('  encrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
+        encryptor.on('data', function (chunk) {
+          bar.tick(chunk.length)
+        })
         inStream.pipe(new BlockStream(65536, {nopad: true})).pipe(encryptor).pipe(outStream)
       }
     })
@@ -387,6 +404,7 @@ module.exports = {
   decrypt: function (inPath, outPath, force) {
     // decrypt a stream with wallet
     var self = this
+    var inStat = fs.statSync(inPath)
     var inStream = fs.createReadStream(inPath)
     try {
       fs.statSync(outPath)
@@ -409,6 +427,7 @@ module.exports = {
       var decryptor
       var blocked
       var sha = crypto.createHash('sha1')
+      var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
       inStream.on('data', function (chunk) {
         if (!decryptor) {
           str += chunk.toString()
@@ -459,7 +478,11 @@ module.exports = {
               }
             })
             var shaStream = crypto.createHash('sha256')
+            outStream.on('data', function (chunk) {
+              bar.tick(chunk.size)
+            })
             outStream.once('finish', function () {
+              console.log('done. verifying...')
               fs.createReadStream(outPath)
                 .pipe(shaStream)
                 .once('data', function (sha) {
@@ -469,6 +492,7 @@ module.exports = {
                   }
                   console.log('decrypted to', outPath)
                   self.translateHeader(header, function (err, header) {
+                    if (err) throw new Error('error translating headers')
                     console.log(prettyjson.render(header, {
                       noColor: false,
                       keysColor: 'blue',
