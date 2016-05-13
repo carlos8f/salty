@@ -111,6 +111,13 @@ program
   })
 
 program
+  .command('ls')
+  .description('list imported keys')
+  .action(function () {
+    cli.ls()
+  })
+
+program
   .command('encrypt <infile> [outfile]')
   .description('sign and encrypt a file into a ".salty" file')
   .option('-t, --to <email>', 'email address to encrypt for. (must be imported first. default: self)')
@@ -162,13 +169,6 @@ program
         stringColor: 'grey'
       }))
     })
-  })
-
-program
-  .command('ls')
-  .description('list imported keys')
-  .action(function () {
-    cli.ls()
   })
 
 program
