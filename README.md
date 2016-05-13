@@ -12,28 +12,23 @@ $ npm install -g salty
 ## Usage
 
 ```
-$ salty
-
-    Usage: salty [options] [command]
+  Usage: salty [options] [command]
 
 
   Commands:
 
     init                                  initialize a wallet at ~/.salty
     id|pubkey                             output your shareable pubkey string
-    import <pubkey|url|file>              import a peer's pubkey
-    encrypt [options] <infile> [outfile]  encrypt and sign a file for a peer (specify an imported pubkey using --to=<email>)
-    decrypt [options] <infile> [outfile]  decrypt and verify a file from a peer
+    import <pubkey|url|file>              import a pubkey
     ls                                    list imported keys
-    save [indir] [outfile]                password-encrypt the contents of [indir] (defaults to ~/.salty) to PEM [outfile] (defaults to salty.pem)
-    restore <infile> [outdir]             restore contents of password-encrypted PEM <infile> to [outdir] (defaults to ~/.salty)
+    encrypt [options] <infile> [outfile]  sign and encrypt a file into a ".salty" file
+    decrypt [options] <infile> [outfile]  decrypt and verify a ".salty" file
+    header|headers <infile>               view the headers of a ".salty" file
+    save [indir] [outfile]                save an encrypted backup of your wallet
+    restore [infile] [outdir]             restore your wallet from a backup
 
   Options:
 
     -h, --help     output usage information
     -V, --version  output the version number
 ```
-
-## TODO
-
-- signing, detaching, verifying
