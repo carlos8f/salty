@@ -34,3 +34,8 @@ $ npm install -g salty
     -h, --help     output usage information
     -V, --version  output the version number
 ```
+
+## TODO
+
+- split into branches: xsalsa20_stream, poly1305, nacl-stream-js, aes
+- benchmark each branch
