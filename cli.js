@@ -179,6 +179,10 @@ module.exports = {
       cb = noTranslate
       noTranslate = false
     }
+    if (inPath.indexOf('.salty') === -1) {
+      // try to append .salty
+      inPath += '.salty'
+    }
     var self = this
     child_process.exec('tail -c 1000 ' + inPath, function (err, stdout, stderr) {
       assert.ifError(err)
@@ -281,7 +285,7 @@ module.exports = {
     var p = path.join(homeDir, '.salty', 'id_salty.pub')
     fs.readFile(p, {encoding: 'utf8'}, cb)
   },
-  encrypt: function (email, inPath, outPath, nonce, force) {
+  encrypt: function (email, inPath, outPath, nonce, force, del) {
     // encrypt a stream for pubkey
     var self = this
     try {
@@ -364,6 +368,7 @@ module.exports = {
             console.log('encrypted to', outPath)
             self.translateHeader(header, function (err, header) {
               if (err) throw new Error('error translating headers')
+              if (del) fs.unlinkSync(inPath)
               console.log(prettyjson.render(header, {
                 noColor: false,
                 keysColor: 'blue',
@@ -387,9 +392,13 @@ module.exports = {
       }
     })
   },
-  decrypt: function (inPath, outPath, force) {
+  decrypt: function (inPath, outPath, force, del) {
     // decrypt a stream with wallet
     var self = this
+    if (inPath.indexOf('.salty') === -1) {
+      // try to append .salty
+      inPath += '.salty'
+    }
     var inStat = fs.statSync(inPath)
     var inStream = fs.createReadStream(inPath)
     try {
@@ -440,6 +449,7 @@ module.exports = {
               console.log('decrypted to', outPath)
               self.translateHeader(header, function (err, header) {
                 if (err) throw new Error('error translating headers')
+                if (del) fs.unlinkSync(inPath)
                 console.log(prettyjson.render(header, {
                   noColor: false,
                   keysColor: 'blue',

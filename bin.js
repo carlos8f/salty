@@ -67,7 +67,7 @@ program
 
 program
   .command('import <pubkey|url|file>')
-  .description('import a peer\'s pubkey')
+  .description('import a pubkey')
   .action(function (pubkey, options) {
     if (pubkey.indexOf('https:') === 0) {
       withGet(https.get, withPubkey)
@@ -112,10 +112,11 @@ program
 
 program
   .command('encrypt <infile> [outfile]')
-  .description('encrypt and sign a file for a peer (specify an imported pubkey using --to=<email>)')
-  .option('--to <email>', 'peer email address to encrypt for (salty-id must be imported first)')
-  .option('--nonce <nonce>', 'use a specific nonce (base64-encoded)')
-  .option('--force', 'ignore warnings and do it')
+  .description('sign and encrypt a file into a ".salty" file')
+  .option('-t, --to <email>', 'email address to encrypt for. (must be imported first. default: self)')
+  .option('--nonce <nonce>, -n', 'use a specific nonce (base64-encoded)')
+  .option('-F, --force', 'ignore warnings and do it')
+  .option('-D, --delete', 'delete the original file after encryption')
   .action(function (infile, outfile, options) {
     outfile || (outfile = infile + '.salty')
     cli.encrypt(
@@ -123,14 +124,16 @@ program
       infile,
       outfile,
       options.nonce ? salty.decode(options.nonce) : null,
-      options.force
+      options.force,
+      options.delete
     )
   })
 
 program
   .command('decrypt <infile> [outfile]')
-  .description('decrypt and verify a file from a peer')
-  .option('--force', 'ignore warnings and do it')
+  .description('decrypt and verify a ".salty" file')
+  .option('-F, --force', 'ignore warnings and do it')
+  .option('-D, --delete', 'delete the salty file after verification')
   .action(function (infile, outfile, options) {
     var ext = path.extname(infile)
     if (!outfile && ext !== '.salty') {
@@ -140,8 +143,25 @@ program
     cli.decrypt(
       infile,
       outfile,
-      options.force
+      options.force,
+      options.delete
     )
+  })
+
+program
+  .command('header <infile>')
+  .alias('headers')
+  .description('view the headers of a ".salty" file')
+  .action(function (infile) {
+    cli.headers(infile, function (err, header) {
+      if (err) throw err
+      console.log(prettyjson.render(header, {
+        noColor: false,
+        keysColor: 'blue',
+        dashColor: 'magenta',
+        stringColor: 'grey'
+      }))
+    })
   })
 
 program
@@ -153,7 +173,7 @@ program
 
 program
   .command('save [indir] [outfile]')
-  .description('password-encrypt the contents of [indir] (defaults to ~/.salty) to PEM [outfile] (defaults to salty.pem)')
+  .description('save an encrypted backup of your wallet')
   .action(function (indir, outfile) {
     (function getPassphrase () {
       prompt.password('Create a passphrase: ', function (passphrase) {
@@ -169,26 +189,10 @@ program
   })
 
 program
-  .command('restore <infile> [outdir]')
-  .description('restore contents of password-encrypted PEM <infile> to [outdir] (defaults to ~/.salty)')
+  .command('restore [infile] [outdir]')
+  .description('restore your wallet from a backup')
   .action(function (infile, outdir) {
     cli.restore(infile, outdir)
-  })
-
-program
-  .command('headers <infile>')
-  .alias('header')
-  .description('view the headers of a .salty file')
-  .action(function (infile) {
-    cli.headers(infile, function (err, header) {
-      if (err) throw err
-      console.log(prettyjson.render(header, {
-        noColor: false,
-        keysColor: 'blue',
-        dashColor: 'magenta',
-        stringColor: 'grey'
-      }))
-    })
   })
 
 program
