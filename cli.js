@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 var base64url = require('base64-url')
   , fs = require('fs')
   , homeDir = process.env['USER'] === 'root' ? '/root' : process.env['HOME'] || '/home/' + process.env['USER']
@@ -180,7 +179,7 @@ module.exports = {
       noTranslate = false
     }
     var self = this
-    child_process.exec('tail -c 1000 ' + inPath, function (err, stdout, stderr) {
+    child_process.exec('tail -c 1000 "' + inPath + '"', function (err, stdout, stderr) {
       assert.ifError(err)
       var header = Object.create(null)
       var full = stdout.toString()
@@ -375,8 +374,24 @@ module.exports = {
           })
         })
         var bar = new Progress('  encrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
+        var byteCounter = 0
+        var chunkCounter = 0
+        var tickCounter = 0
         encryptor.on('data', function (chunk) {
-          bar.tick(chunk.length)
+          byteCounter += chunk.length
+          chunkCounter++
+          tickCounter += chunk.length
+          if (chunkCounter % 100 === 0) {
+            bar.tick(tickCounter)
+            tickCounter = 0
+          }
+          if (typeof global.gc !== 'undefined') {
+            // agressively garbage collect
+            if (byteCounter >= 1024 * 1024 * 500) {
+              global.gc()
+              byteCounter = 0
+            }
+          }
         })
         var shaStream = crypto.createHash('sha256')
         shaStream.once('data', function (sha) {
@@ -429,9 +444,16 @@ module.exports = {
           var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: finalSize, width: 80 })
           var shaStream = crypto.createHash('sha256')
           shaStream.write(nonce)
+          var tickCounter = 0
+          var chunkCounter = 0
           fs.createReadStream(outPath)
             .on('data', function (chunk) {
-              bar.tick(chunk.length)
+              chunkCounter++
+              tickCounter += chunk.length
+              if (chunkCounter % 100 === 0) {
+                bar.tick(tickCounter)
+                tickCounter = 0
+              }
             })
             .pipe(shaStream)
             .once('data', function (sha) {
@@ -455,9 +477,25 @@ module.exports = {
         blocked = new BlockStream(65536, {nopad: true})
         decryptor = wallet.peerStream(nonce, identity)
         decryptor.pipe(outStream)
+        var byteCounter = 0
+        var chunkCounter = 0
+        var tickCounter = 0
         decryptor.on('data', function (chunk) {
           finalSize += chunk.length
-          bar.tick(chunk.length)
+          tickCounter += chunk.length
+          byteCounter += chunk.length
+          chunkCounter++
+          if (chunkCounter % 100 === 0) {
+            bar.tick(tickCounter)
+            tickCounter = 0
+          }
+          if (typeof global.gc !== 'undefined') {
+            // agressively garbage collect
+            if (byteCounter >= 1024 * 1024 * 500) {
+              global.gc()
+              byteCounter = 0
+            }
+          }
         })
         blocked.pipe(decryptor)
         var bytesRead = 0
@@ -652,25 +690,3 @@ module.exports = {
     }
   }
 }
-
-/*
-
-
-IDEAS FOR SALTY CLI
-
-salty init
-
-  - create ~/.salty (chmod 700)
-  - create ~/.salty/id_salty (chmod 600, ask for passphrase, write wallet pem)
-  - create ~/.salty/id_salty.pub (chmod 644, ask for email)
-  - create ~/.salty/imported_keys
-
-salty import [url/file/string]
-
-salty encrypt --to={email} [infile] [outfile]
-
-salty decrypt [infile] [outfile]
-
-
-
-*/
