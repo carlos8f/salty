@@ -382,6 +382,7 @@ module.exports = {
         shaStream.once('data', function (sha) {
           header['Hash'] = sha.toString('base64')
         })
+        shaStream.write(nonce)
         inStream.pipe(shaStream)
         inStream.pipe(new BlockStream(65536, {nopad: true})).pipe(encryptor).pipe(outStream)
         inStream.resume()
@@ -427,6 +428,7 @@ module.exports = {
         outStream.once('finish', function () {
           var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: finalSize, width: 80 })
           var shaStream = crypto.createHash('sha256')
+          shaStream.write(nonce)
           fs.createReadStream(outPath)
             .on('data', function (chunk) {
               bar.tick(chunk.length)
@@ -568,10 +570,12 @@ module.exports = {
     var self = this
     var inStat = fs.statSync(inPath)
     var inStream = fs.createReadStream(inPath)
+    var nonce = salty.nonce()
     inStream.pause()
     self.init(function (err, wallet) {
       if (err) throw err
       var shaStream = crypto.createHash('sha256')
+      shaStream.write(nonce)
       var header = Object.create(null)
       function writeHeader () {
         var out = ''
@@ -581,6 +585,7 @@ module.exports = {
         return out
       }
       header['From-Salty-Id'] = wallet.identity.toString()
+      header['Nonce'] = nonce.toString('base64')
       shaStream.once('data', function (buf) {
         header['Hash'] = buf.toString('base64')
         var headerStr = writeHeader()
@@ -621,6 +626,8 @@ module.exports = {
     function withHeaders (header, header_length) {
       var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
       var shaStream = crypto.createHash('sha256')
+      var nonce = salty.decode(header['nonce'])
+      shaStream.write(nonce)
       inStream
         .on('data', function (chunk) {
           bar.tick(chunk.length)
