@@ -1,6 +1,6 @@
 {
   "name": "salty",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "Alternative public key encryption for the masses",
   "main": "index.js",
   "bin": "bin.js",
