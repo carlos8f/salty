@@ -1,7 +1,7 @@
 salty
 =====
 
-A practical, compact CLI crypto system based on TweetNaCl, featuring public key sharing and zero-password peer stream encryption.
+Alternative public key encryption for the masses
 
 ## Install
 
