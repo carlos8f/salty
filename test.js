@@ -172,7 +172,7 @@ describe('tests', function () {
     child_process.spawn('tail', ['-c', 842, p + '.salty']).stdout
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
-        assert.equal(data.toString('hex'), '41da156c06abe5fdfd643fc09952b78f8d64d276');
+        assert.equal(data.toString('hex'), 'd68f086c70d38a21f6dc504652a4dd08ec8d30ec');
         done();
       });
   });
