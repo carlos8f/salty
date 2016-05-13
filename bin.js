@@ -66,6 +66,7 @@ program
 
 program
   .command('import <pubkey|url|file>')
+  .alias('i')
   .description('import a pubkey')
   .action(function (pubkey, options) {
     if (pubkey.indexOf('https:') === 0) {
@@ -111,6 +112,7 @@ program
 
 program
   .command('ls')
+  .alias('l')
   .description('list imported keys')
   .action(function () {
     cli.ls()
@@ -118,6 +120,7 @@ program
 
 program
   .command('encrypt <infile>')
+  .alias('e')
   .description('sign and encrypt a file into a ".salty" file')
   .option('-t, --to <email>', 'email address to encrypt for. (must be imported first. default: self)')
   .option('--nonce <nonce>, -n', 'use a specific nonce (base64-encoded)')
@@ -137,6 +140,7 @@ program
 
 program
   .command('decrypt <infile>')
+  .alias('d')
   .description('decrypt and verify a ".salty" file')
   .option('-F, --force', 'ignore warnings and do it')
   .option('-D, --delete', 'delete the salty file after verification')
@@ -156,6 +160,7 @@ program
 program
   .command('header <infile>')
   .alias('headers')
+  .alias('h')
   .description('view the headers of a ".salty" file')
   .action(function (infile) {
     if (infile.indexOf('.salty') === -1) {
@@ -174,6 +179,7 @@ program
 
 program
   .command('sign <infile>')
+  .alias('s')
   .description('create a ".salty-sig" signature file')
   .option('-F, --force', 'ignore warnings and do it')
   .action(function (infile, options) {
@@ -184,6 +190,7 @@ program
 
 program
   .command('verify <infile>')
+  .alias('v')
   .description('verify a ".salty-sig" signature with the original file')
   .action(function (insig) {
     if (insig.indexOf('.salty-sig') === -1) {
