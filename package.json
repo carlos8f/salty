@@ -33,7 +33,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://gist.github.com/6de0edd7863292f8ddfb.git"
+    "url": "git://github.com/carlos8f/salty.git"
   },
   "keywords": [
     "crypto",
@@ -45,5 +45,9 @@
     "privacy"
   ],
   "author": "Carlos Rodriguez <carlos@s8f.org> (http://s8f.org/)",
-  "license": "MIT"
+  "license": "MIT",
+  "homepage": "https://github.com/carlos8f/salty",
+  "bugs": {
+    "url": "https://github.com/carlos8f/salty/issues"
+  }
 }
