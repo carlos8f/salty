@@ -2,6 +2,7 @@ var nacl = require('tweetnacl')
   , asn1 = require('asn1.js')
   , es = require('event-stream')
   , pemtools = require('pemtools')
+  , BN = require('bn.js')
 
 var a = function (buf) {
   return new Uint8Array(buf)
@@ -120,6 +121,8 @@ salty.wallet = function (buf) {
       var k = this.secret(identity);
       return es.through(function write (data) {
         this.queue(salty.xor(data, nonce, k));
+        // increment the nonce after each block.
+        nonce = new BN(nonce).addn(1).toBuffer();
       });
     },
     toPEM: function (passphrase) {

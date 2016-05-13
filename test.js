@@ -125,7 +125,7 @@ describe('tests', function () {
     fs.createReadStream(p + '-encrypted')
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
-        assert.equal(data.toString('hex'), '0b911be779d0fc7c8a457dc60eee320e5935511e');
+        assert.equal(data.toString('hex'), 'a13a795f65c44a8a166f109e5991ec93e48f62d0');
         done();
       });
   });

@@ -8,6 +8,7 @@
     "asn1.js": "^4.6.0",
     "base64-url": "^1.2.2",
     "block-stream": "git+https://github.com/carlos8f/block-stream.git",
+    "bn.js": "^4.11.3",
     "cli-prompt": "^0.5.0",
     "commander": "^2.9.0",
     "email-addresses": "^2.0.2",
