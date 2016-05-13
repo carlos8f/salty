@@ -179,40 +179,36 @@ module.exports = {
       cb = noTranslate
       noTranslate = false
     }
-    if (inPath.indexOf('.salty') === -1) {
-      // try to append .salty
-      inPath += '.salty'
-    }
     var self = this
     child_process.exec('tail -c 1000 ' + inPath, function (err, stdout, stderr) {
       assert.ifError(err)
       var header = Object.create(null)
       var full = stdout.toString()
       var parts = full.split('\r\n\r\n')
-      assert(parts.length > 1)
-      parts[1].split('\r\n').forEach(function (line) {
+      var headers = parts.length === 2 ? parts[1] : parts[0]
+      headers.split('\r\n').forEach(function (line) {
         if (!line.trim()) return
         var parts = line.trim().split(': ')
         if (parts.length !== 2) throw new Error('failed to read header')
         if (typeof header[parts[0].toLowerCase()] !== 'undefined') throw new Error('cannot redefine header')
         header[parts[0].toLowerCase()] = parts[1]
       })
-      var header_length = parts[1].length + 4
+      var header_length = headers.length + 4
       if (!header['from-salty-id']) throw new Error('from-salty-id header required')
-      if (!header['nonce']) throw new Error('nonce header required')
       try {
         var identity = salty.identity(header['from-salty-id'])
       }
       catch (e) {
         throw new Error('invalid from-salty-id')
       }
-      try {
-        var to_identity = salty.identity(header['to-salty-id'])
+      if (header['to-salty-id']) {
+        try {
+          var to_identity = salty.identity(header['to-salty-id'])
+        }
+        catch (e) {
+          throw new Error('invalid to-salty-id')
+        }
       }
-      catch (e) {
-        throw new Error('invalid to-salty-id')
-      }
-      var nonce = salty.decode(header['nonce'])
       if (!header['hash']) throw new Error('hash header is required')
       if (!header['signature']) throw new Error('signature header is required')
       var signedStr = identity.verify(Buffer(header['signature'], 'base64'))
@@ -395,10 +391,6 @@ module.exports = {
   decrypt: function (inPath, outPath, force, del) {
     // decrypt a stream with wallet
     var self = this
-    if (inPath.indexOf('.salty') === -1) {
-      // try to append .salty
-      inPath += '.salty'
-    }
     var inStat = fs.statSync(inPath)
     var inStream = fs.createReadStream(inPath)
     try {
@@ -422,7 +414,6 @@ module.exports = {
       function withHeaders (header, header_length) {
         var str = ''
         var chunks = []
-        var header
         var decryptor
         var blocked
         if (header['to-salty-id'] && header['to-salty-id'] !== wallet.identity.toString()) {
@@ -561,8 +552,98 @@ module.exports = {
         gunzipStream.end()
       }
     })
+  },
+  sign: function (inPath, outPath, force) {
+    try {
+      fs.statSync(outPath)
+      if (!force) {
+        throw new Error('refusing to overwrite ' + outPath + '. use --force to ignore this.')
+      }
+    }
+    catch (err) {
+      if (err && err.code !== 'ENOENT') {
+        throw err
+      }
+    }
+    var self = this
+    var inStat = fs.statSync(inPath)
+    var inStream = fs.createReadStream(inPath)
+    inStream.pause()
+    self.init(function (err, wallet) {
+      if (err) throw err
+      var shaStream = crypto.createHash('sha256')
+      var header = Object.create(null)
+      function writeHeader () {
+        var out = ''
+        Object.keys(header).forEach(function (k) {
+          out += k + ': ' + header[k] + '\r\n'
+        })
+        return out
+      }
+      header['From-Salty-Id'] = wallet.identity.toString()
+      shaStream.once('data', function (buf) {
+        header['Hash'] = buf.toString('base64')
+        var headerStr = writeHeader()
+        header['Signature'] = wallet.sign(Buffer(headerStr)).toString('base64')
+        var finalHeader = writeHeader()
+        fs.writeFile(outPath, finalHeader, function (err) {
+          if (err) throw err
+          console.log('wrote signature to', outPath)
+          self.translateHeader(header, function (err, header) {
+            if (err) throw new Error('error translating headers')
+            console.log(prettyjson.render(header, {
+              noColor: false,
+              keysColor: 'blue',
+              dashColor: 'magenta',
+              stringColor: 'grey'
+            }))
+          })
+        })
+      })
+      var bar = new Progress('  hashing [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
+      inStream.on('data', function (chunk) {
+        bar.tick(chunk.length)
+      })
+      inStream.pipe(shaStream)
+      inStream.resume()
+    })
+  },
+  verify: function (inSig, inPath) {
+    // decrypt a stream with wallet
+    var self = this
+    var inStat = fs.statSync(inPath)
+    var inStream = fs.createReadStream(inPath)
+    inStream.pause()
+    self.headers(inSig, true, function (err, header, header_length) {
+      if (err) throw err
+      withHeaders(header, header_length)
+    })
+    function withHeaders (header, header_length) {
+      var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
+      var shaStream = crypto.createHash('sha256')
+      inStream
+        .on('data', function (chunk) {
+          bar.tick(chunk.length)
+        })
+        .pipe(shaStream)
+        .once('data', function (sha) {
+          if (sha.toString('base64') !== header['hash']) {
+            throw new Error('file hash does not match signature: ' + sha.toString('base64') + ' != ' + header['hash'])
+          }
+          self.translateHeader(header, function (err, header) {
+            if (err) throw new Error('error translating headers')
+            console.log(prettyjson.render(header, {
+              noColor: false,
+              keysColor: 'blue',
+              dashColor: 'magenta',
+              stringColor: 'grey'
+            }))
+          })
+        })
+
+      inStream.resume()
+    }
   }
-  // sign and verify?
 }
 
 /*

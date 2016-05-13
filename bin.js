@@ -6,7 +6,6 @@ var cli = require('./cli')
   , http = require('http')
   , https = require('https')
   , salty = require('./')
-  , path = require('path')
   , pemtools = require('pemtools')
   , prettyjson = require('prettyjson')
 
@@ -118,14 +117,14 @@ program
   })
 
 program
-  .command('encrypt <infile> [outfile]')
+  .command('encrypt <infile>')
   .description('sign and encrypt a file into a ".salty" file')
   .option('-t, --to <email>', 'email address to encrypt for. (must be imported first. default: self)')
   .option('--nonce <nonce>, -n', 'use a specific nonce (base64-encoded)')
   .option('-F, --force', 'ignore warnings and do it')
   .option('-D, --delete', 'delete the original file after encryption')
-  .action(function (infile, outfile, options) {
-    outfile || (outfile = infile + '.salty')
+  .action(function (infile, options) {
+    var outfile = infile + '.salty'
     cli.encrypt(
       options.to,
       infile,
@@ -137,16 +136,15 @@ program
   })
 
 program
-  .command('decrypt <infile> [outfile]')
+  .command('decrypt <infile>')
   .description('decrypt and verify a ".salty" file')
   .option('-F, --force', 'ignore warnings and do it')
   .option('-D, --delete', 'delete the salty file after verification')
-  .action(function (infile, outfile, options) {
-    var ext = path.extname(infile)
-    if (!outfile && ext !== '.salty') {
-      throw new Error('<infile> is not a .salty file. specify [outfile] to ignore this.')
+  .action(function (infile, options) {
+    if (infile.indexOf('.salty') === -1) {
+      infile += '.salty'
     }
-    outfile || (outfile = infile.replace(/\.salty$/, ''))
+    var outfile = infile.replace(/\.salty$/, '')
     cli.decrypt(
       infile,
       outfile,
@@ -160,6 +158,9 @@ program
   .alias('headers')
   .description('view the headers of a ".salty" file')
   .action(function (infile) {
+    if (infile.indexOf('.salty') === -1) {
+      infile += '.salty'
+    }
     cli.headers(infile, function (err, header) {
       if (err) throw err
       console.log(prettyjson.render(header, {
@@ -169,6 +170,27 @@ program
         stringColor: 'grey'
       }))
     })
+  })
+
+program
+  .command('sign <infile>')
+  .description('create a ".salty-sig" signature file')
+  .option('-F, --force', 'ignore warnings and do it')
+  .action(function (infile, options) {
+    infile = infile.replace(/\.salty-sig$/, '')
+    var outpem = infile + '.salty-sig'
+    cli.sign(infile, outpem, options.force)
+  })
+
+program
+  .command('verify <infile>')
+  .description('verify a ".salty-sig" signature with the original file')
+  .action(function (insig) {
+    if (insig.indexOf('.salty-sig') === -1) {
+      insig += '.salty-sig'
+    }
+    var infile = insig.replace(/\.salty-sig$/, '')
+    cli.verify(insig, infile)
   })
 
 program
