@@ -4,7 +4,6 @@ var base64url = require('base64-url')
   , salty = require('./')
   , path = require('path')
   , addrs = require('email-addresses')
-  , crypto = require('crypto')
   , BlockStream = require('block-stream')
   , tmpDir = require('os').tmpDir()
   , assert = require('assert')
@@ -16,6 +15,7 @@ var base64url = require('base64-url')
   , zlib = require('zlib')
   , child_process = require('child_process')
   , Progress = require('progress')
+  , chacha = require('chacha')
 
 module.exports = {
   _parsePubkey: function (pubkey) {
@@ -357,6 +357,7 @@ module.exports = {
           assert(header['Hash'])
           header['Signature'] = wallet.sign(Buffer(headerStr)).toString('base64')
           var finalHeader = writeHeader()
+          bar.tick(tickCounter)
           console.log('writing header...')
           fs.writeFile(outPath, '\r\n\r\n' + finalHeader, {flag: 'a'}, function (err) {
             if (err) throw err
@@ -393,12 +394,11 @@ module.exports = {
             }
           }
         })
-        var shaStream = crypto.createHash('sha256')
-        shaStream.once('data', function (sha) {
+        var hashStream = chacha.createHmac(wallet.secret(identity))
+        hashStream.once('data', function (sha) {
           header['Hash'] = sha.toString('base64')
         })
-        shaStream.write(nonce)
-        inStream.pipe(shaStream)
+        inStream.pipe(hashStream)
         inStream.pipe(new BlockStream(65536, {nopad: true})).pipe(encryptor).pipe(outStream)
         inStream.resume()
       }
@@ -441,42 +441,32 @@ module.exports = {
         var outStream = fs.createWriteStream(outPath, {mode: parseInt('0600', 8)})
         var finalSize = 0
         outStream.once('finish', function () {
-          var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: finalSize, width: 80 })
-          var shaStream = crypto.createHash('sha256')
-          shaStream.write(nonce)
-          var tickCounter = 0
-          var chunkCounter = 0
-          fs.createReadStream(outPath)
-            .on('data', function (chunk) {
-              chunkCounter++
-              tickCounter += chunk.length
-              if (chunkCounter % 100 === 0) {
-                bar.tick(tickCounter)
-                tickCounter = 0
-              }
-            })
-            .pipe(shaStream)
-            .once('data', function (sha) {
-              if (sha.toString('base64') !== header['hash']) {
-                fs.unlinkSync(outPath)
-                throw new Error('wrote bad sha ' + sha.toString('base64') + ' != ' + header['hash'])
-              }
-              console.log('decrypted to', outPath)
-              self.translateHeader(header, function (err, header) {
-                if (err) throw new Error('error translating headers')
-                if (del) fs.unlinkSync(inPath)
-                console.log(prettyjson.render(header, {
-                  noColor: false,
-                  keysColor: 'blue',
-                  dashColor: 'magenta',
-                  stringColor: 'grey'
-                }))
-              })
-            })
+          assert(hash)
+          if (hash !== header['hash']) {
+            fs.unlinkSync(outPath)
+            throw new Error('wrote bad hash ' + hash + ' != ' + header['hash'])
+          }
+          console.log('decrypted to', outPath)
+          self.translateHeader(header, function (err, header) {
+            if (err) throw new Error('error translating headers')
+            if (del) fs.unlinkSync(inPath)
+            console.log(prettyjson.render(header, {
+              noColor: false,
+              keysColor: 'blue',
+              dashColor: 'magenta',
+              stringColor: 'grey'
+            }))
+          })
         })
         blocked = new BlockStream(65536, {nopad: true})
         decryptor = wallet.peerStream(nonce, identity)
         decryptor.pipe(outStream)
+        var hashStream = chacha.createHmac(wallet.secret(identity))
+        hashStream.once('data', function (data) {
+          hash = data.toString('base64')
+        })
+        var hash
+        decryptor.pipe(hashStream)
         var byteCounter = 0
         var chunkCounter = 0
         var tickCounter = 0
@@ -496,6 +486,10 @@ module.exports = {
               byteCounter = 0
             }
           }
+        })
+        decryptor.once('end', function () {
+          bar.tick(tickCounter)
+          console.log('verifying...')
         })
         blocked.pipe(decryptor)
         var bytesRead = 0
@@ -612,8 +606,7 @@ module.exports = {
     inStream.pause()
     self.init(function (err, wallet) {
       if (err) throw err
-      var shaStream = crypto.createHash('sha256')
-      shaStream.write(nonce)
+      var hashStream = chacha.createHmac(nonce)
       var header = Object.create(null)
       function writeHeader () {
         var out = ''
@@ -624,7 +617,7 @@ module.exports = {
       }
       header['From-Salty-Id'] = wallet.identity.toString()
       header['Nonce'] = nonce.toString('base64')
-      shaStream.once('data', function (buf) {
+      hashStream.once('data', function (buf) {
         header['Hash'] = buf.toString('base64')
         var headerStr = writeHeader()
         header['Signature'] = wallet.sign(Buffer(headerStr)).toString('base64')
@@ -647,7 +640,7 @@ module.exports = {
       inStream.on('data', function (chunk) {
         bar.tick(chunk.length)
       })
-      inStream.pipe(shaStream)
+      inStream.pipe(hashStream)
       inStream.resume()
     })
   },
@@ -663,17 +656,16 @@ module.exports = {
     })
     function withHeaders (header, header_length) {
       var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
-      var shaStream = crypto.createHash('sha256')
       var nonce = salty.decode(header['nonce'])
-      shaStream.write(nonce)
+      var hashStream = chacha.createHmac(nonce)
       inStream
         .on('data', function (chunk) {
           bar.tick(chunk.length)
         })
-        .pipe(shaStream)
-        .once('data', function (sha) {
-          if (sha.toString('base64') !== header['hash']) {
-            throw new Error('file hash does not match signature: ' + sha.toString('base64') + ' != ' + header['hash'])
+        .pipe(hashStream)
+        .once('data', function (hash) {
+          if (hash.toString('base64') !== header['hash']) {
+            throw new Error('file hash does not match signature: ' + hash.toString('base64') + ' != ' + header['hash'])
           }
           self.translateHeader(header, function (err, header) {
             if (err) throw new Error('error translating headers')
