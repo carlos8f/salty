@@ -438,7 +438,7 @@ module.exports = {
         var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size - header_length, width: 80 })
         var identity = salty.identity(header['from-salty-id'])
         var nonce = salty.decode(header['nonce'])
-        var outStream = fs.createWriteStream(outPath, {mode: parseInt('0600', 8)})
+        var outStream = fs.createWriteStream(outPath, {mode: parseInt('0644', 8)})
         var finalSize = 0
         outStream.once('finish', function () {
           if (!hash) hashStream.once('end', finished)
