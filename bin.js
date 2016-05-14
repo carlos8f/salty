@@ -159,7 +159,6 @@ program
 
 program
   .command('header <infile>')
-  .alias('headers')
   .alias('h')
   .description('view the headers of a ".salty" file')
   .action(function (infile) {
