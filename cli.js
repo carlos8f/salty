@@ -606,7 +606,7 @@ module.exports = {
     var self = this
     var inStat = fs.statSync(inPath)
     var inStream = fs.createReadStream(inPath)
-    var nonce = salty.nonce()
+    var nonce = salty.nonce(32)
     inStream.pause()
     self.init(function (err, wallet) {
       if (err) throw err
