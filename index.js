@@ -128,12 +128,7 @@ salty.wallet = function (buf) {
       return es.through(function write (data) {
         size += data.length
         var isLast = size === totalSize
-        if (isLast) console.log('last chunk', isLast)
         var encryptedChunk = encryptor.encryptChunk(a(data), isLast)
-        if (!encryptedChunk) {
-          console.log('bad', encryptedChunk)
-          process.exit()
-        }
         this.queue(Buffer(encryptedChunk))
         if (isLast) {
           encryptor.clean()
@@ -151,25 +146,19 @@ salty.wallet = function (buf) {
         buf = Buffer.concat([buf, data])
         var isLast = size === totalSize
         var len = nacl.stream.readChunkLength(buf)
-        if (!len) throw new Error('no chunk length ' + len)
         if (buf.length < len + 20) return
         var chunk = buf.slice(0, len + 20)
-        if (isLast) console.log('last chunk', isLast)
-        assert.equal(chunk.length, 20 + 65536)
-        var decryptedChunk = decryptor.decryptChunk(a(chunk), isLast)
-        if (!isLast && !decryptedChunk) {
-          console.log('bad', decryptedChunk)
-          process.exit()
-        }
-        if (decryptedChunk) {
+        buf = buf.slice(len + 20)
+        var decryptedChunk = decryptor.decryptChunk(a(chunk), isLast && !buf.length)
+        this.queue(Buffer(decryptedChunk))
+        if (isLast && buf.length) {
+          len = nacl.stream.readChunkLength(buf)
+          chunk = buf.slice(0, len + 20)
+          decryptedChunk = decryptor.decryptChunk(a(chunk), true)
           this.queue(Buffer(decryptedChunk))
         }
         if (isLast) {
           decryptor.clean()
-          this.end()
-        }
-        else {
-          buf = buf.slice(len + 20)
         }
       });
     },
