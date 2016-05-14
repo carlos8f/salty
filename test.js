@@ -102,6 +102,7 @@ describe('tests', function () {
     assert.deepEqual(wallet, alice);
   });
 
+  var streamSize = 0
   it('stream fixture', function (done) {
     request({encoding: null, uri: 'https://raw.githubusercontent.com/carlos8f/node-buffet/master/test/files/folder/Alice-white-rabbit.jpg'})
       .pipe(fs.createWriteStream(p))
@@ -109,6 +110,9 @@ describe('tests', function () {
   });
   it('read stream fixture', function (done) {
     fs.createReadStream(p)
+      .on('data', function (chunk) {
+        streamSize += chunk.length
+      })
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
         assert.equal(data.toString('hex'), '2bce2ffc40e0d90afe577a76db5db4290c48ddf4');
@@ -117,21 +121,25 @@ describe('tests', function () {
   });
   it('alice encrypts stream for bob', function (done) {
     fs.createReadStream(p)
-      .pipe(alice.peerStream(nonce, bob.identity))
+      .pipe(alice.peerEncryptor(nonce, bob.identity, streamSize))
       .pipe(fs.createWriteStream(p + '-encrypted'))
       .on('finish', done);
   });
+  var encSize = 0
   it('verify encrypted', function (done) {
     fs.createReadStream(p + '-encrypted')
+      .on('data', function (chunk) {
+        encSize += chunk.length
+      })
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
-        assert.equal(data.toString('hex'), 'a13a795f65c44a8a166f109e5991ec93e48f62d0');
+        assert.equal(data.toString('hex'), 'b6468d5941c375d9c8e568fd47b6960d7428bed7');
         done();
       });
   });
   it('decrypt stream', function (done) {
     fs.createReadStream(p + '-encrypted')
-      .pipe(bob.peerStream(nonce, alice.identity))
+      .pipe(bob.peerDecryptor(nonce, alice.identity, encSize))
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
         assert.equal(data.toString('hex'), '2bce2ffc40e0d90afe577a76db5db4290c48ddf4');
@@ -140,13 +148,13 @@ describe('tests', function () {
   });
   it('alice encrypts stream for herself', function (done) {
     fs.createReadStream(p)
-      .pipe(alice.peerStream(nonce, alice.identity))
+      .pipe(alice.peerEncryptor(nonce, alice.identity, streamSize))
       .pipe(fs.createWriteStream(p + '-encrypted2'))
       .on('finish', done);
   });
   it('decrypt stream', function (done) {
     fs.createReadStream(p + '-encrypted2')
-      .pipe(alice.peerStream(nonce, alice.identity))
+      .pipe(alice.peerDecryptor(nonce, alice.identity, encSize))
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
         assert.equal(data.toString('hex'), '2bce2ffc40e0d90afe577a76db5db4290c48ddf4');
@@ -172,7 +180,7 @@ describe('tests', function () {
     child_process.spawn('tail', ['-c', 842, p + '.salty']).stdout
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
-        assert.equal(data.toString('hex'), 'd68f086c70d38a21f6dc504652a4dd08ec8d30ec');
+        assert.equal(data.toString('hex'), '65c44a53abac9b3249c70232ce64a526d19a340f');
         done();
       });
   });

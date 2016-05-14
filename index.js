@@ -3,6 +3,9 @@ var nacl = require('tweetnacl')
   , es = require('event-stream')
   , pemtools = require('pemtools')
   , BN = require('bn.js')
+  , assert = require('assert')
+
+nacl.stream = require('nacl-stream').stream
 
 var a = function (buf) {
   return new Uint8Array(buf)
@@ -117,12 +120,46 @@ salty.wallet = function (buf) {
     secret: function (identity) {
       return Buffer(nacl.box.before(a(salty.identity(identity).encryptPk), a(this.decryptSk)));
     },
-    peerStream: function (nonce, identity) {
-      var k = this.secret(identity);
+    peerEncryptor: function (nonce, identity, totalSize) {
+      var k = this.secret(identity)
+      var n = nonce.slice(0, 16)
+      var size = 0
+      var encryptor = nacl.stream.createEncryptor(a(k), a(n), 65536)
       return es.through(function write (data) {
-        this.queue(salty.xor(data, nonce, k));
-        // increment the nonce after each block.
-        nonce = new BN(nonce).addn(1).toBuffer();
+        size += data.length
+        var isLast = size === totalSize
+        var encryptedChunk = encryptor.encryptChunk(a(data), isLast)
+        this.queue(Buffer(encryptedChunk))
+        if (isLast) {
+          encryptor.clean()
+        }
+      });
+    },
+    peerDecryptor: function (nonce, identity, totalSize) {
+      var k = this.secret(identity)
+      var n = nonce.slice(0, 16)
+      var size = 0
+      var decryptor = nacl.stream.createDecryptor(a(k), a(n), 65536)
+      var buf = Buffer('')
+      return es.through(function write (data) {
+        size += data.length
+        buf = Buffer.concat([buf, data])
+        var isLast = size === totalSize
+        var len = nacl.stream.readChunkLength(buf)
+        if (buf.length < len + 20) return
+        var chunk = buf.slice(0, len + 20)
+        buf = buf.slice(len + 20)
+        var decryptedChunk = decryptor.decryptChunk(a(chunk), isLast && !buf.length)
+        this.queue(Buffer(decryptedChunk))
+        if (isLast && buf.length) {
+          len = nacl.stream.readChunkLength(buf)
+          chunk = buf.slice(0, len + 20)
+          decryptedChunk = decryptor.decryptChunk(a(chunk), true)
+          this.queue(Buffer(decryptedChunk))
+        }
+        if (isLast) {
+          decryptor.clean()
+        }
       });
     },
     toPEM: function (passphrase) {
