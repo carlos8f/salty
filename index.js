@@ -2,7 +2,6 @@ var nacl = require('tweetnacl')
   , asn1 = require('asn1.js')
   , es = require('event-stream')
   , pemtools = require('pemtools')
-  , BN = require('bn.js')
   , assert = require('assert')
 
 nacl.stream = require('nacl-stream').stream
