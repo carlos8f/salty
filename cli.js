@@ -330,7 +330,7 @@ module.exports = {
       }
       function withIdentity (identity) {
         nonce || (nonce = salty.nonce())
-        var encryptor = wallet.peerStream(nonce, identity)
+        var encryptor = wallet.peerEncryptor(nonce, identity, inStat.size)
         var header = {
           'To-Salty-Id': identity.toString(),
           'From-Salty-Id': wallet.identity.toString(),
@@ -395,8 +395,8 @@ module.exports = {
           }
         })
         var hashStream = chacha.createHmac(wallet.secret(identity))
-        hashStream.once('data', function (sha) {
-          header['Hash'] = sha.toString('base64')
+        hashStream.once('data', function (hash) {
+          header['Hash'] = hash.toString('base64')
         })
         inStream.pipe(hashStream)
         inStream.pipe(new BlockStream(65536, {nopad: true})).pipe(encryptor).pipe(outStream)
@@ -441,6 +441,10 @@ module.exports = {
         var outStream = fs.createWriteStream(outPath, {mode: parseInt('0600', 8)})
         var finalSize = 0
         outStream.once('finish', function () {
+          if (!hash) hashStream.once('end', finished)
+          else finished()
+        })
+        function finished () {
           assert(hash)
           if (hash !== header['hash']) {
             fs.unlinkSync(outPath)
@@ -457,9 +461,9 @@ module.exports = {
               stringColor: 'grey'
             }))
           })
-        })
+        }
         blocked = new BlockStream(65536, {nopad: true})
-        decryptor = wallet.peerStream(nonce, identity)
+        decryptor = wallet.peerDecryptor(nonce, identity, inStat.size - header_length)
         decryptor.pipe(outStream)
         var hashStream = chacha.createHmac(wallet.secret(identity))
         hashStream.once('data', function (data) {
@@ -489,7 +493,7 @@ module.exports = {
         })
         decryptor.once('end', function () {
           bar.tick(tickCounter)
-          console.log('verifying...')
+          console.log('\nverifying...')
         })
         blocked.pipe(decryptor)
         var bytesRead = 0
