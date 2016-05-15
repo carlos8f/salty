@@ -3,6 +3,8 @@ salty
 
 Alternative public key encryption for the masses
 
+## Warning: API and file format are still changing. Major overhaul planned.
+
 ## Description
 
 Salty is an alternative to PGP/GPG using [NaCl](https://en.wikipedia.org/wiki/NaCl_(software)) instead of RSA/DSA.
@@ -48,6 +50,14 @@ $ npm install -g salty
     -h, --help     output usage information
     -V, --version  output the version number
 ```
+
+## TODO
+
+- [use ephemeral keys like reop](http://www.tedunangst.com/flak/post/reop)
+    - public header: pubEph, nonce, encrypted payload
+    - decrypt with secBob + pubEph, nonce
+    - encrypted payload: plain text, private header
+    - private header: from-salty-id (optional), to-salty-id (required if has from) hash (required, key=secBob + pubEph) signature (required if has from)
 
 - - -
 
