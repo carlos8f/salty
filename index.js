@@ -1,6 +1,6 @@
 var nacl = require('tweetnacl')
   , asn1 = require('asn1.js')
-  , es = require('event-stream')
+  , through = require('through')
   , pemtools = require('pemtools')
   , assert = require('assert')
 
@@ -124,7 +124,7 @@ salty.wallet = function (buf) {
       var n = nonce.slice(0, 16)
       var size = 0
       var encryptor = nacl.stream.createEncryptor(a(k), a(n), 65536)
-      return es.through(function write (data) {
+      return through(function write (data) {
         size += data.length
         var isLast = size === totalSize
         var encryptedChunk = encryptor.encryptChunk(a(data), isLast)
@@ -140,7 +140,7 @@ salty.wallet = function (buf) {
       var size = 0
       var decryptor = nacl.stream.createDecryptor(a(k), a(n), 65536)
       var buf = Buffer('')
-      return es.through(function write (data) {
+      return through(function write (data) {
         size += data.length
         buf = Buffer.concat([buf, data])
         var isLast = size === totalSize
