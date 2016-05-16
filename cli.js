@@ -849,7 +849,7 @@ module.exports = {
       gzipStream.on('end', function () {
         var zlibBuffer = Buffer.concat(gzipChunks)
         var pem = pemtools(zlibBuffer, 'SALTY WALLET', passphrase).toString()
-        fs.writeFile(dest, pem + '\n', {mode: parseInt('0600', 8)}, function (err) {
+        fs.writeFile(dest, pem + '\n', {mode: parseInt('0644', 8)}, function (err) {
           if (err) throw err
           console.log('saved to', dest)
         })
