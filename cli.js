@@ -16,6 +16,7 @@ var base64url = require('base64-url')
   , Progress = require('progress')
   , chacha = require('chacha')
   , colors = require('colors')
+  , homeDir = process.env['USER'] === 'root' ? '/root' : process.env['HOME'] || '/home/' + process.env['USER']
 
 module.exports = {
   init: function (outPath, name, email, cb) {
@@ -52,6 +53,7 @@ module.exports = {
     var self = this
     p = path.join(homeDir, '.salty', 'imported_keys')
     fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
+      if (err) return cb(err)
       keys = keys.trim().split('\n')
       var recipients = Object.create(null)
       keys.forEach(function (line) {
@@ -75,6 +77,22 @@ module.exports = {
         recipients[pubkey.toString()] = pubkey
       })
       cb(null, recipients)
+    })
+  },
+  findRecipient: function (input, cb) {
+    if (!input) {
+      try {
+        var str = fs.readFileSync(path.join(homeDir, '.salty', 'id_salty.pub'), {encoding: 'utf8'})
+        var pubkey = salty.parsePubkey(str)
+      }
+      catch (e) {
+        return cb(new Error('error reading id_salty.pub'))
+      }
+      return cb(null, pubkey)
+    }
+    this._getRecipients(function (err, recipients) {
+      if (err) return cb(err)
+      cb(null, recipients[input])
     })
   },
   translateHeader: function (_header, cb) {

@@ -47,6 +47,13 @@ salty.parsePubkey = function (str) {
     },
     toBuffer: function () {
       return buf
+    },
+    toNiceString: function () {
+      if (!this.name && !this.email) return this.toBuffer().toString('base64')
+      var parts = []
+      if (this.name) parts.push('"' + this.name + '"')
+      if (this.email) parts.push('<' + this.email + '>')
+      return parts.join(' ')
     }
   }
 }
