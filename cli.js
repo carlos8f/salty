@@ -1,6 +1,5 @@
 var base64url = require('base64-url')
   , fs = require('fs')
-  , homeDir = process.env['USER'] === 'root' ? '/root' : process.env['HOME'] || '/home/' + process.env['USER']
   , salty = require('./')
   , path = require('path')
   , addrs = require('email-addresses')
@@ -19,42 +18,10 @@ var base64url = require('base64-url')
   , colors = require('colors')
 
 module.exports = {
-  _parsePubkey: function (pubkey) {
-    if (typeof pubkey !== 'string') throw new Error('pubkey must be a string')
-    var parts = pubkey.split(' ')
-    if (parts.length < 3) throw new Error('pubkey parts are invalid')
-    var tag = parts.shift()
-    if (tag !== 'salty-id') throw new Error('pubkey tag is invalid')
-    var id = parts.shift()
-    try {
-      var identity = salty.identity(base64url.unescape(id))
-    }
-    catch (e) {
-      throw e
-    }
-    if (!identity) throw new Error('pubkey identity is invalid')
-    var email = addrs.parseOneAddress(parts.join(' ').trim())
-    if (!email) throw new Error('pubkey email is invalid')
-    return {
-      pubkey: pubkey.trim(),
-      tag: tag,
-      id: id,
-      identity: identity,
-      email: parts.join(' ').trim(),
-      parsedEmail: email
-    }
-  },
-  init: function (passphrase, cb) {
-    if (typeof passphrase === 'function') {
-      cb = passphrase
-      passphrase = null
-    }
-    // initialize a wallet at ~/.salty/id_salty
-    var p = path.join(homeDir, '.salty')
-    fs.stat(p, function (err, stat) {
+  init: function (outPath, name, email, cb) {
+    fs.stat(outPath, function (err, stat) {
       if (err && err.code === 'ENOENT') {
-        console.error('dir', p, 'does not exist. creating...')
-        fs.mkdir(p, parseInt('0700', 8), function (err) {
+        fs.mkdir(outPath, parseInt('0700', 8), function (err) {
           if (err) return cb(err)
           withHome()
         })
@@ -64,39 +31,7 @@ module.exports = {
       withHome()
     })
     function withHome () {
-      var p = path.join(homeDir, '.salty', 'id_salty')
-      fs.stat(p, function (err, stat) {
-        if (err && err.code === 'ENOENT') {
-          console.error('file', p, 'does not exist. creating...')
-          var wallet = salty.wallet()
-          fs.writeFile(p, wallet.toPEM(passphrase) + '\n', {mode: parseInt('0600', 8)}, function (err) {
-            if (err) return cb(err)
-            cb(null, wallet)
-          })
-          return
-        }
-        else if (err) return cb(err)
-        fs.readFile(p, {encoding: 'utf8'}, function (err, pem) {
-          if (err) return cb(err)
-          if (pem.indexOf('ENCRYPTED') !== -1 && !passphrase) {
-            process.stderr.write('Enter your passphrase: ')
-            return prompt.password(null, function (passphrase) {
-              console.error()
-              withPrompt(passphrase)
-            })
-          }
-          else withPrompt(passphrase)
-          function withPrompt (passphrase) {
-            try {
-              var wallet = salty.fromPEM(pem, passphrase)
-            }
-            catch (e) {
-              return cb(e)
-            }
-            cb(null, wallet)
-          }
-        })
-      })
+      salty.writeWallet(outPath, name, email, cb)
     }
   },
   import: function (pubkey, cb) {

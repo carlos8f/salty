@@ -5,6 +5,7 @@ var nacl = require('tweetnacl')
   , base64url = require('base64-url')
   , prompt = require('cli-prompt')
   , fs = require('fs')
+  , path = require('path')
 
 nacl.stream = require('nacl-stream').stream
 
@@ -23,15 +24,16 @@ salty.parsePubkey = function (str) {
   try {
     var match = str.match(/salty\-id\s*([a-zA-Z0-9-\_]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/)
     assert(match)
-    var keys = pemtools.unserialize(base64url.decode(match[1]))
-    assert.equal(keys.length, 2)
+    var buf = Buffer(base64url.unescape(match[1]), 'base64')
+    assert(buf.length, 64)
   }
   catch (e) {
+    throw e
     throw new Error('invalid pubkey')
   }
   return {
-    encryptPk: keys[0],
-    verifyPk: keys[1],
+    encryptPk: buf.slice(0, 32),
+    verifyPk: buf.slice(32),
     name: match[2],
     email: match[3],
     verify: function (sig, detachedBuf) {
@@ -42,8 +44,25 @@ salty.parsePubkey = function (str) {
     },
     toString: function () {
       return salty.buildPubkey(this.encryptPk, this.verifyPk, this.name, this.email)
+    },
+    toBuffer: function () {
+      return buf
     }
   }
+}
+
+salty.buildPubkey = function (encryptPk, verifyPk, name, email) {
+  var keys = Buffer.concat([
+    encryptPk,
+    verifyPk
+  ])
+  var parts = [
+    'salty-id',
+    base64url.escape(Buffer(keys).toString('base64'))
+  ]
+  if (name) parts.push('"' + name.replace(/"/g, '') + '"')
+  if (email) parts.push('<' + email.replace(/>/g, '') + '>')
+  return parts.join(' ')
 }
 
 salty.ephemeral = function (pubkey, nonce) {
@@ -72,7 +91,6 @@ salty.parseEphemeral = function (buf) {
   try {
     var parts = pemtools.unserialize(buf)
     assert.equal(parts.length, 2)
-    assert.equal()
   }
   catch (e) {
     throw new Error('invalid ephemeral')
@@ -89,22 +107,13 @@ salty.parseEphemeral = function (buf) {
   }
 }
 
-salty.buildPubkey = function (encryptPk, verifyPk, name, email) {
-  var keys = pemtools.serialize([
-    encryptPk,
-    verifyPk
-  ])
-  var parts = [
-    'salty-id',
-    base64url.encode(keys)
-  ]
-  if (name) parts.push('"' + name.replace(/"/g, '') + '"')
-  if (email) parts.push('<' + email.replace(/>/g, '') + '>')
-  return parts.join(' ')
-}
-
 salty.loadWallet = function (inPath, cb) {
-  fs.readFile(inPath, {encoding: 'utf8'}, function (err, str) {
+  fs.readFile(path.join(inPath, 'id_salty'), {encoding: 'utf8'}, function (err, str) {
+    if (err && err.code === 'ENOENT') {
+      err = new Error('No salty-wallet found. Type `salty init` to create one.')
+      err.code = 'ENOENT'
+      return cb(err)
+    }
     if (err) return cb(err)
     if (str.indexOf('ENCRYPTED') !== -1) {
       process.stderr.write('Enter your passphrase: ')
@@ -113,43 +122,110 @@ salty.loadWallet = function (inPath, cb) {
         withPrompt(passphrase)
       })
     }
-    else withPrompt(passphrase)
+    else withPrompt(null)
     function withPrompt (passphrase) {
       try {
         var pem = pemtools(str, 'SALTY WALLET', passphrase)
         var buf = pem.toBuffer()
         var wallet = salty.parseWallet(buf)
+        passphrase = null
       }
       catch (e) {
         return cb(e)
       }
-      cb(null, wallet)
+      fs.readFile(path.join(inPath, 'id_salty.pub'), {encoding: 'utf8'}, function (err, str) {
+        if (err && err.code === 'ENOENT') {
+          err = new Error('No salty-id found. Type `salty init` to create one.')
+          err.code = 'ENOENT'
+          return cb(err)
+        }
+        if (err) return cb(err)
+        try {
+          var pubkey = salty.parsePubkey(str)
+        }
+        catch (e) {
+          return cb(e)
+        }
+        cb(null, wallet, pubkey)
+      })
+    }
+  })
+}
+
+salty.writeWallet = function (outPath, name, email, cb) {
+  salty.loadWallet(outPath, function (err, wallet, pubkey) {
+    if (err && err.code === 'ENOENT') {
+      console.error('No wallet found. Creating...')
+      var boxKey = nacl.box.keyPair()
+      var signKey = nacl.sign.keyPair()
+      var buf = Buffer.concat([
+        Buffer(boxKey.secretKey),
+        Buffer(signKey.secretKey)
+      ])
+      wallet = salty.parseWallet(buf)
+      var str = salty.buildPubkey(Buffer(boxKey.publicKey), Buffer(signKey.publicKey), name, email)
+      pubkey = salty.parsePubkey(str)
+      getPassphrase()
+    }
+    else if (err) return cb(err)
+    else {
+      process.stderr.write('Wallet found. Update your wallet? (y/n): ')
+      prompt(null, function (resp) {
+        if (resp.match(/^y/i)) {
+          pubkey.name = name
+          pubkey.email = email
+          getPassphrase()
+        }
+        else {
+          console.error('Cancelled.')
+          cb()
+        }
+      })
+    }
+    function getPassphrase () {
+      process.stderr.write('Create a passphrase: ')
+      prompt(null, true, function (passphrase) {
+        process.stderr.write('Confirm passphrase: ')
+        prompt(null, true, function (passphrase2) {
+          if (passphrase2 !== passphrase) {
+            console.error('Passwords did not match!')
+            return getPassphrase()
+          } 
+          var str = wallet.toString(passphrase)
+          fs.writeFile(path.join(outPath, 'id_salty'), str + '\n', {mode: parseInt('0600', 8)}, function (err) {
+            if (err) return cb(err)
+            fs.writeFile(path.join(outPath, 'id_salty.pub'), pubkey.toString() + '\n', {mode: parseInt('0644', 8)}, function (err) {
+              if (err) return cb(err)
+              fs.writeFile(path.join(outPath, 'imported_keys'), pubkey.toString() + '\n', {mode: parseInt('0600', 8), flag: 'a+'}, function (err) {
+                if (err) return cb(err)
+                cb(null, wallet, pubkey)
+              })
+            })
+          })
+        })
+      })
     }
   })
 }
 
 salty.parseWallet = function (buf) {
   try {
-    var keys = pemtools.unserialize(buf)
-    assert.equal(keys.length, 2)
+    assert.equal(buf.length, 96)
   }
   catch (e) {
     throw new Error('invalid wallet')
   }
   return {
-    decryptSk: keys[0],
-    signSk: keys[1],
-    secret: function (ephPk) {
-      return Buffer(nacl.box.before(a(ephPk), a(this.decryptSk)))
-    },
+    decryptSk: buf.slice(0, 32),
+    signSk: buf.slice(32),
     sign: function (buf, detach) {
       if (detach) return Buffer(nacl.sign.detached(a(buf), a(this.signSk)))
       return Buffer(nacl.sign(a(buf), a(this.signSk)))
     },
     toBuffer: function () {
-      return pemtools.serialize([
-        decryptSk: this.decryptSk,
-        signSk: this.signSk
+      return Buffer.concat([
+        this.decryptSk,
+        this.signSk
       ])
     },
     toString: function (passphrase) {

@@ -9,6 +9,8 @@ var cli = require('./cli')
   , pemtools = require('pemtools')
   , prettyjson = require('prettyjson')
   , through = require('through')
+  , path = require('path')
+  , homeDir = process.env['USER'] === 'root' ? '/root' : process.env['HOME'] || '/home/' + process.env['USER']
 
 var program = require('commander')
   .version(require('./package.json').version)
@@ -18,37 +20,24 @@ program
   .description('initialize a wallet at ~/.salty')
   .action(function (options) {
     prompt('Enter your name (can be blank): ', function (name) {
-      (function promptEmail () {
-        prompt('Enter your email address (can be fake): ', function (email) {
-          if (!email) return promptEmail()
-          var parsed = addrs.parseOneAddress(email)
-          if (!parsed) {
-            console.error('invalid email!')
-            return promptEmail()
+      name = name.trim()
+      ;(function promptEmail () {
+        prompt('Enter your email address (can be fake/blank): ', function (email) {
+          if (email) {
+            var parsed = addrs.parseOneAddress(email)
+            if (!parsed) {
+              console.error('invalid email!')
+              return promptEmail()
+            }
+            email = parsed.address.toLowerCase()
           }
-          if (name) email = '"' + name.replace(/"|'/g, '') + '" <' + parsed.address.toLowerCase() + '>'
-          else if (parsed.name) email = '"' + parsed.name.replace(/"|'/g, '') + '" <' + parsed.address.toLowerCase() + '>'
-          else email = email.toLowerCase()
-          ;(function getPassphrase() {
-            prompt('Enter a passphrase (can be blank): ', true, function (passphrase) {
-              if (passphrase) {
-                prompt('Confirm passphrase: ', true, function (passphrase2) {
-                  if (passphrase2 !== passphrase) {
-                    console.error('Passwords did not match!')
-                    return getPassphrase()
-                  }
-                  withPassphrase()
-                })
-              }
-              else withPassphrase()
-              function withPassphrase () {
-                cli.pubkey(email, passphrase, function (err, pubkey) {
-                  if (err) throw err
-                  console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
-                })
-              }
-            })
-          })()
+          var outPath = path.join(homeDir, '.salty')
+          cli.init(outPath, name, email, function (err, wallet, pubkey) {
+            if (err) throw err
+            if (pubkey) {
+              console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey.toString() + '\n')
+            }
+          })
         })
       })()
     })
