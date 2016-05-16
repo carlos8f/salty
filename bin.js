@@ -120,23 +120,24 @@ program
   })
 
 program
-  .command('encrypt [infile]')
+  .command('encrypt [infile] [outfile]')
   .alias('e')
-  .description('sign and encrypt a file into a ".salty" file')
+  .description('encrypt a file')
   .option('-t, --to <email>', 'email address to encrypt for. (must be imported first. default: self)')
   .option('-n, --nonce <nonce>', 'use a specific nonce (base64-encoded)')
   .option('-m, --message', 'compose a message instead of using [infile] (implies -a)')
+  .option('-s, --sign', 'sign the message to reveal/prove our identity')
   .option('-a, --armor', 'output as a PEM to STDOUT')
   .option('-F, --force', 'ignore warnings and do it')
   .option('-D, --delete', 'delete the original file after encryption')
-  .action(function (infile, options) {
+  .action(function (infile, outfile, options) {
     if (options.message) {
-      return cli.encryptMessage(options.to, options.nonce)
+      return cli.encryptMessage(options.to, options.nonce, options.sign)
     }
     if (options.armor) {
       return cli.encryptPEM(options.to, infile, options.nonce, options.delete)
     }
-    var outfile = infile + '.salty'
+    outfile || (outfile = infile + '.salty')
     cli.encrypt(
       options.to,
       infile,
@@ -148,13 +149,13 @@ program
   })
 
 program
-  .command('decrypt <infile>')
+  .command('decrypt <infile> [outfile]')
   .alias('d')
-  .description('decrypt and verify a ".salty" file')
+  .description('decrypt and verify a file')
   .option('-a, --armor', 'expect PEM format, output to STDOUT')
   .option('-F, --force', 'ignore warnings and do it')
   .option('-D, --delete', 'delete the salty file after verification')
-  .action(function (infile, options) {
+  .action(function (infile, outfile, options) {
     if (options.armor && infile.indexOf('.pem') === -1) {
       infile += '.pem'
     }
@@ -167,42 +168,13 @@ program
     if (!infile.indexOf('.salty') === -1) {
       infile += '.salty'
     }
-    var outfile = infile.replace(/\.salty$/, '')
+    outfile || (outfile = infile.replace(/\.salty$/, ''))
     cli.decrypt(
       infile,
       outfile,
       options.force,
       options.delete
     )
-  })
-
-program
-  .command('header <infile>')
-  .alias('h')
-  .description('view the headers of a ".salty" file')
-  .option('-a, --armor', 'expect a PEM')
-  .action(function (infile, options) {
-    if (options.armor && infile.indexOf('.pem') === -1) {
-      infile += '.pem'
-    }
-    else if (infile.match(/\.pem$/)) {
-      options.armor = true
-    }
-    else if (!options.armor && infile.indexOf('.salty') === -1) {
-      infile += '.salty'
-    }
-    cli[options.armor ? 'headersFromPEM' : 'headers'](infile, function (err, header) {
-      if (err) throw err
-      withHeader(header)
-    })
-    function withHeader (header) {
-      console.log(prettyjson.render(header, {
-        noColor: false,
-        keysColor: 'blue',
-        dashColor: 'magenta',
-        stringColor: 'grey'
-      }))
-    }
   })
 
 program
@@ -255,7 +227,7 @@ program
 program
   .command('*')
   .action(function (infile) {
-    program.outputHelp();
+    program.outputHelp()
   })
 
 program.parse(process.argv)

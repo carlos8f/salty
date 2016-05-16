@@ -473,7 +473,7 @@ module.exports = {
       }
     })
   },
-  encryptMessage: function (email, nonce) {
+  encryptMessage: function (email, nonce, sign) {
     // encrypt a stream for pubkey
     var self = this
     if (email) {
