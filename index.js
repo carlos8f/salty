@@ -20,11 +20,6 @@ var salty = module.exports = {
   },
   nonce: function (len) {
     return Buffer(nacl.randomBytes(len || nacl.box.nonceLength))
-  },
-  xor: function (data, nonce, k) { // scramble or unscramble a buffer using a nonce+k pair
-    var output = a(Buffer(data.length))
-    nacl.lowlevel.crypto_stream_xor(output, 0, a(data), 0, data.length, a(nonce), a(k));
-    return Buffer(output)
   }
 };
 salty.Identity = asn1.define('Identity', function () {
