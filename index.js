@@ -22,7 +22,7 @@ var salty = module.exports = {
 
 salty.parsePubkey = function (str) {
   try {
-    var match = str.match(/salty\-id\s*([a-zA-Z0-9-\_]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/)
+    var match = str.match(/(?:salty\-id)?\s*([a-zA-Z0-9-\_]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/)
     assert(match)
     var buf = Buffer(base64url.unescape(match[1]), 'base64')
     assert(buf.length, 64)
@@ -35,7 +35,7 @@ salty.parsePubkey = function (str) {
     encryptPk: buf.slice(0, 32),
     verifyPk: buf.slice(32),
     name: match[2],
-    email: match[3],
+    email: match[3] ? match[3].toLowerCase() : null,
     verify: function (sig, detachedBuf) {
       if (detachedBuf) {
         return nacl.sign.detached.verify(a(detachedBuf), a(sig), a(this.verifyPk)) ? detachedBuf : false
@@ -79,7 +79,7 @@ salty.ephemeral = function (pubkey, nonce) {
       return enc
     },
     toBuffer: function () {
-      return pemtools.serialize([
+      return Buffer.concat([
         this.encryptPk,
         this.nonce
       ])
@@ -89,15 +89,14 @@ salty.ephemeral = function (pubkey, nonce) {
 
 salty.parseEphemeral = function (buf) {
   try {
-    var parts = pemtools.unserialize(buf)
-    assert.equal(parts.length, 2)
+    assert.equal(buf.length, 56)
   }
   catch (e) {
     throw new Error('invalid ephemeral')
   }
   return {
-    encryptPk: parts[0],
-    nonce: parts[1],
+    encryptPk: buf.slice(0, 32),
+    nonce: buf.slice(32),
     createDecryptor: function (wallet, totalSize) {
       var k = Buffer(nacl.box.before(this.encryptPk, wallet.decryptSk))
       var dec = salty.decryptor(this.nonce, k, totalSize)

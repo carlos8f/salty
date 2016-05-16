@@ -34,65 +34,48 @@ module.exports = {
       salty.writeWallet(outPath, name, email, cb)
     }
   },
-  import: function (pubkey, cb) {
+  import: function (outPath, str, cb) {
     // import pubkey into ~/.salty/imported_keys
     try {
-      pubkey = this._parsePubkey(pubkey)
+      var pubkey = salty.parsePubkey(str)
     }
     catch (e) {
       return cb(e)
     }
-    var p = path.join(homeDir, '.salty', 'imported_keys')
-    fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
-      if (err && err.code === 'ENOENT') {
-        return withKeys('')
-      }
-      else if (err) return cb(err)
-      withKeys(keys)
+    fs.writeFile(outPath, pubkey.toString() + '\n', {mode: parseInt('0600', 8), flag: 'a+'}, function (err) {
+      if (err) return cb(err)
+      console.log('\n\t' + pubkey.toString() + '\n')
+      cb()
     })
-    function withKeys (keys) {
-      keys += pubkey.pubkey + '\n'
-      fs.writeFile(p, keys, {mode: parseInt('0600', 8)}, function (err) {
-        if (err) return cb(err)
-        console.log('\n\t' + pubkey.pubkey + '\n')
-        cb()
-      })
-    }
   },
   _getRecipients: function (cb) {
     var self = this
-    var p = path.join(homeDir, '.salty', 'id_salty.pub')
-    fs.readFile(p, {encoding: 'utf8'}, function (err, pubkey) {
-      if (err && err.code === 'ENOENT') {
-        return withPubkey('')
-      }
-      else if (err) return cb(err)
-      withPubkey(pubkey.trim())
-    })
-    function withPubkey (pubkey) {
-      p = path.join(homeDir, '.salty', 'imported_keys')
-      fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
-        if (err && err.code === 'ENOENT') {
-          return withKeys(pubkey)
-        }
-        else if (err) return cb(err)
-        withKeys(pubkey + '\n' + keys.trim())
-      })
-    }
-    function withKeys (keys) {
-      keys = keys.split('\n')
+    p = path.join(homeDir, '.salty', 'imported_keys')
+    fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
+      keys = keys.trim().split('\n')
       var recipients = Object.create(null)
       keys.forEach(function (line) {
         try {
-          var parsed = self._parsePubkey(line)
+          var pubkey = salty.parsePubkey(line)
         }
         catch (e) {
           return
         }
-        recipients[parsed.identity.toString()] = parsed
+        // real base64
+        recipients[pubkey.toBuffer().toString('base64')] = pubkey
+        // base64-url
+        recipients[base64url.escape(pubkey.toBuffer().toString('base64'))] = pubkey
+        // salty-id
+        recipients['salty-id ' + base64url.escape(pubkey.toBuffer().toString('base64'))] = pubkey
+        // email
+        if (pubkey.email) recipients[pubkey.email] = pubkey
+        // name
+        recipients[pubkey.name] = pubkey
+        // full salty-id
+        recipients[pubkey.toString()] = pubkey
       })
       cb(null, recipients)
-    }
+    })
   },
   translateHeader: function (_header, cb) {
     var self = this
@@ -280,9 +263,8 @@ module.exports = {
       })
     })
   },
-  getPubkey: function (cb) {
-    var p = path.join(homeDir, '.salty', 'id_salty.pub')
-    fs.readFile(p, {encoding: 'utf8'}, cb)
+  getPubkey: function (inPath, cb) {
+    fs.readFile(inPath, {encoding: 'utf8'}, cb)
   },
   encrypt: function (email, inPath, outPath, nonce, force, del) {
     // encrypt a stream for pubkey
@@ -751,8 +733,7 @@ module.exports = {
       }
     })
   },
-  ls: function () {
-    var p = path.join(homeDir, '.salty', 'imported_keys')
+  ls: function (p) {
     fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
       if (err && err.code === 'ENOENT') {
         return withKeys('')

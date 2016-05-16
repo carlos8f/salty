@@ -48,7 +48,7 @@ program
   .description('output your shareable pubkey string')
   .alias('pubkey')
   .action(function (options) {
-    cli.getPubkey(function (err, pubkey) {
+    cli.getPubkey(path.join(homeDir, '.salty/id_salty.pub'), function (err, pubkey) {
       if (err) throw err
       console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
     })
@@ -93,7 +93,7 @@ program
       })
     }
     function withPubkey (pubkey) {
-      cli.import(pubkey, function (err, pubkey) {
+      cli.import(path.join(homeDir, '.salty', 'imported_keys'), pubkey, function (err, pubkey) {
         if (err) throw err
         console.log('imported OK')
       })
@@ -105,7 +105,7 @@ program
   .alias('l')
   .description('list imported keys')
   .action(function () {
-    cli.ls()
+    cli.ls(path.join(homeDir, '.salty', 'imported_keys'))
   })
 
 program
