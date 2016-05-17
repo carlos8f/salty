@@ -6,6 +6,7 @@ var nacl = require('tweetnacl')
   , prompt = require('cli-prompt')
   , fs = require('fs')
   , path = require('path')
+  , chacha = require('chacha')
 
 nacl.stream = require('nacl-stream').stream
 
@@ -81,34 +82,38 @@ salty.ephemeral = function (pubkey, nonce) {
     encryptPk: boxKey.publicKey,
     nonce: nonce,
     createEncryptor: function (totalSize) {
-      var enc = salty.encryptor(nonce, k, totalSize)
-      k = null
-      return enc
+      var enc = salty.encryptor(this.nonce, k, totalSize)
     },
     toBuffer: function () {
       return Buffer.concat([
         this.encryptPk,
         this.nonce
       ])
+    },
+    createHmac: function () {
+      return chacha.createHmac(k)
     }
   }
 }
 
-salty.parseEphemeral = function (buf) {
+salty.parseEphemeral = function (wallet, buf) {
   try {
     assert.equal(buf.length, 56)
   }
   catch (e) {
     throw new Error('invalid ephemeral')
   }
+  var encryptPk = buf.slice(0, 32)
+  var nonce = buf.slice(32)
+  var k = Buffer(nacl.box.before(a(encryptPk), a(wallet.decryptSk)))
   return {
-    encryptPk: buf.slice(0, 32),
-    nonce: buf.slice(32),
-    createDecryptor: function (wallet, totalSize) {
-      var k = Buffer(nacl.box.before(this.encryptPk, wallet.decryptSk))
-      var dec = salty.decryptor(this.nonce, k, totalSize)
-      k = null
-      return dec
+    encryptPk: encryptPk,
+    nonce: nonce,
+    createDecryptor: function (totalSize) {
+      return salty.decryptor(this.nonce, k, totalSize)
+    },
+    createHmac: function () {
+      return chacha.createHmac(k)
     }
   }
 }

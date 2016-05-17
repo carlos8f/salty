@@ -14,7 +14,6 @@ var base64url = require('base64-url')
   , zlib = require('zlib')
   , child_process = require('child_process')
   , Progress = require('progress')
-  , chacha = require('chacha')
   , colors = require('colors')
   , homeDir = process.env['USER'] === 'root' ? '/root' : process.env['HOME'] || '/home/' + process.env['USER']
 
@@ -105,12 +104,12 @@ module.exports = {
     self._getRecipients(function (err, recipients) {
       if (err) return cb(err)
       if (header['from-salty-id'] && recipients[header['from-salty-id']]) {
-        header['from-salty-id'] = recipients[header['from-salty-id']].email
+        header['from-salty-id'] = recipients[header['from-salty-id']].toNiceString()
       }
       if (header['to-salty-id'] && recipients[header['to-salty-id']]) {
-        header['to-salty-id'] = recipients[header['to-salty-id']].email
+        header['to-salty-id'] = recipients[header['to-salty-id']].toNiceString()
       }
-      header['signature'] = 'OK'
+      if (header['signature']) header['signature'] = 'OK'
       cb(null, header)
     })
   },
@@ -236,48 +235,6 @@ module.exports = {
       self.translateHeader(header, function (err, header) {
         if (err) throw new Error('error translating headers')
         cb(null, header, header_length, ctxt)
-      })
-    })
-  },
-  pubkey: function (email, passphrase, cb) {
-    // output the wallet's pubkey with optional email comment
-    var self = this
-    if (typeof email === 'function') {
-      cb = email
-      email = ''
-      passphrase = false
-    }
-    else if (typeof passphrase === 'function') {
-      cb = passphrase
-      passphrase = false
-    }
-    email || (email = '')
-    email = email.trim()
-    var p = path.join(homeDir, '.salty', 'id_salty.pub')
-
-    this.init(passphrase, function (err, wallet) {
-      if (err) return cb(err)
-      
-      fs.readFile(p, {encoding: 'utf8'}, function (err, pubkey) {
-        var output
-        if (err && err.code === 'ENOENT') {
-          if (!email) return cb(new Error('you must run `salty init`.'))
-          output = 'salty-id ' + base64url.encode(wallet.identity.toBuffer()) + ' ' + email
-        }
-        else if (err) return cb(err)
-        else {
-          try {
-            var parsed = self._parsePubkey(pubkey)
-          }
-          catch (e) {
-            return cb(e)
-          }
-          output = [parsed.tag, base64url.encode(wallet.identity.toBuffer()), email || parsed.email].join(' ')
-        }
-        fs.writeFile(p, output + '\n', {mode: parseInt('0644', 8)}, function (err) {
-          if (err) return cb(err)
-          cb(null, output)
-        })
       })
     })
   },
@@ -411,97 +368,70 @@ module.exports = {
   encryptMessage: function (email, nonce, sign) {
     // encrypt a stream for pubkey
     var self = this
-    if (email) {
-      var parsedEmail = addrs.parseOneAddress(email)
-      if (!parsedEmail) throw new Error('invalid email address: ' + email)
-    }
-    this.init(function (err, wallet) {
+    self.findRecipient(email, function (err, recipient) {
       if (err) throw err
-      if (!email) return withIdentity(wallet.identity)
-      var p = path.join(homeDir, '.salty', 'imported_keys')
-      fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
-        if (err && err.code === 'ENOENT') {
-          return withKeys('')
-        }
-        else if (err) throw err
-        withKeys(keys)
-      })
-      function withKeys (keys) {
-        keys = keys.trim().split('\n')
-        var chosen = null;
-        keys.forEach(function (key) {
-          if (!key) return
-          var parsed = self._parsePubkey(key)
-          if (parsed.parsedEmail.address.toLowerCase() === parsedEmail.address.toLowerCase()) {
-            chosen = parsed.identity
-          }
+      if (!recipient) throw new Error('recipient not found: ' + email)
+      if (sign) {
+        salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet, pubkey) {
+          if (err) throw err
+          withWallet(recipient, wallet)
         })
-        if (!chosen) {
-          throw new Error('email not found in imported_keys. run `salty import <pubkey>` first?')
-        }
-        withIdentity(chosen)
       }
-      function withIdentity (identity) {
-        process.stderr.write('Compose message: (CTL-D when done)\n\n> ')
-        var lines = []
-        process.stdin.once('end', function () {
-          lines.push('')
-          var m = Buffer(lines.join('\n'))
-          console.error('lines', JSON.stringify(lines, null, 2))
-          withMessage(m)
-        })
-        ;(function getLine () {
-          prompt(null, function (line) {
-            lines.push(line)
-            getLine()
-          })
-        })()
-        function withMessage (m) {
-          nonce || (nonce = salty.nonce())
-          var encryptor = wallet.peerEncryptor(nonce, identity, m.length)
-          var header = {
-            'To-Salty-Id': identity.toString(),
-            'From-Salty-Id': wallet.identity.toString(),
-            'Nonce': salty.encode(nonce)
-          }
-          function writeHeader () {
-            var out = ''
-            Object.keys(header).forEach(function (k) {
-              out += k + ': ' + header[k] + '\r\n'
-            })
-            return out
-          }
-
-          var chunks = []
-          var finished = false
-          function withHash () {
-            var headerStr = writeHeader()
-            assert(header['Hash'])
-            header['Signature'] = wallet.sign(Buffer(headerStr)).toString('base64')
-            var finalHeader = writeHeader()
-            chunks.push(Buffer('\r\n\r\n' + finalHeader))
-            var ctxt = Buffer.concat(chunks)
-            var output = pemtools(ctxt, 'SALTY MESSAGE')
-            console.log(colors.yellow(output) + '\n')
-          }
-          encryptor.on('data', function (chunk) {
-            chunks.push(chunk)
-          })
-          encryptor.once('end', function () {
-            finished = true
-            if (header['Hash']) withHash()
-          })
-          var hashStream = chacha.createHmac(wallet.secret(identity))
-          hashStream.once('data', function (hash) {
-            header['Hash'] = hash.toString('base64')
-            if (finished) withHash()
-          })
-          
-          hashStream.end(m)
-          encryptor.end(m)
-        }
-      }
+      else withWallet(recipient)
     })
+    function withWallet (recipient, wallet) {
+      process.stderr.write('Compose message: (CTL-D when done)\n\n> ')
+      var lines = []
+      process.stdin.once('end', function () {
+        lines.push('')
+        var m = Buffer(lines.join('\n'))
+        console.error('lines', JSON.stringify(lines, null, 2))
+        withMessage(m)
+      })
+      ;(function getLine () {
+        prompt(null, function (line) {
+          lines.push(line)
+          getLine()
+        })
+      })()
+      function withMessage (m) {
+        nonce || (nonce = salty.nonce())
+        var eph = salty.ephemeral(recipient, nonce)
+        var encryptor = eph.createEncryptor(m.length)
+        var chunks = []
+        var finished = false
+        var header = Object.create(null)
+        chunks.push(eph.toBuffer())
+        function withHash () {
+          if (sign) {
+            header['from-salty-id'] = 
+          }
+          var headerStr = writeHeader()
+          assert(header['Hash'])
+          header['Signature'] = wallet.sign(Buffer(headerStr)).toString('base64')
+          var finalHeader = writeHeader()
+          chunks.push(Buffer('\r\n\r\n' + finalHeader))
+          var ctxt = Buffer.concat(chunks)
+          var output = pemtools(ctxt, 'SALTY MESSAGE')
+          console.log(colors.yellow(output) + '\n')
+        }
+        encryptor.on('data', function (chunk) {
+          chunks.push(chunk)
+        })
+        encryptor.once('end', function () {
+          finished = true
+          if (header['Hash']) withHash()
+        })
+        var hashStream = eph.createHmac()
+        hashStream.once('data', function (hash) {
+          header['hash'] = hash.toString('base64')
+          withHash()
+        })
+        hashStream.end(m)
+        encryptor.write()
+        encryptor.write(m)
+      }
+    }
   },
   encryptPEM: function (email, inPath, nonce, del) {
     var self = this
