@@ -513,7 +513,7 @@ module.exports = {
     function withEphSlice (buf) {
       var eph = salty.parseEphemeral(wallet, buf)
       inStream.removeListener('data', parseEphemeral)
-      var decryptor = eph.createDecryptor(totalSize - 56)
+      var decryptor = eph.createDecryptor(totalSize)
       var hashStream = eph.createHmac()
       var tail = []
       var bytesRead = 0

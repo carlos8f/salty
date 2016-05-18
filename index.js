@@ -268,18 +268,32 @@ salty.decryptor = function (nonce, k, totalSize) {
     size += data.length
     buf = Buffer.concat([buf, data])
     var isLast = size === totalSize
-    var len = nacl.stream.readChunkLength(buf)
-    if (buf.length < len + 20) return
-    var chunk = buf.slice(0, len + 20)
-    buf = buf.slice(len + 20)
-    var decryptedChunk = decryptor.decryptChunk(a(chunk), isLast && !buf.length)
-    console.error('dec chunk', Buffer(decryptedChunk))
-    this.queue(Buffer(decryptedChunk))
+    while (buf.length) {
+      var len = nacl.stream.readChunkLength(buf)
+      console.error('read chunk len....', len)
+      if (buf.length < len + 20) {
+        console.error('short', buf.length, len + 20)
+        return
+      }
+      var chunk = buf.slice(0, len + 20)
+      if (chunk.length < len + 20) {
+        console.error('too short')
+        break
+      }
+      buf = buf.slice(len + 20)
+      console.error('attempting to decrypt chunk', chunk.length, isLast, buf.length)
+      var decryptedChunk = decryptor.decryptChunk(a(chunk), !buf.length)
+      console.error('dec chunk', Buffer(decryptedChunk).length)
+      console.error('left over', buf.length)
+      this.queue(Buffer(decryptedChunk))
+    }
+
     if (isLast && buf.length) {
+      console.error('last, decrypting final')
       len = nacl.stream.readChunkLength(buf)
       chunk = buf.slice(0, len + 20)
       decryptedChunk = decryptor.decryptChunk(a(chunk), true)
-      console.error('dec FINAL chunk', Buffer(decryptedChunk))
+      console.error('dec FINAL chunk', Buffer(decryptedChunk).length)
       this.queue(Buffer(decryptedChunk))
     }
     if (isLast) {
