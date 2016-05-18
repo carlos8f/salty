@@ -273,14 +273,17 @@ salty.decryptor = function (nonce, k, totalSize) {
     var chunk = buf.slice(0, len + 20)
     buf = buf.slice(len + 20)
     var decryptedChunk = decryptor.decryptChunk(a(chunk), isLast && !buf.length)
+    console.error('dec chunk', Buffer(decryptedChunk))
     this.queue(Buffer(decryptedChunk))
     if (isLast && buf.length) {
       len = nacl.stream.readChunkLength(buf)
       chunk = buf.slice(0, len + 20)
       decryptedChunk = decryptor.decryptChunk(a(chunk), true)
+      console.error('dec FINAL chunk', Buffer(decryptedChunk))
       this.queue(Buffer(decryptedChunk))
     }
     if (isLast) {
+      console.error('FINAL CLEAN')
       decryptor.clean()
     }
   })

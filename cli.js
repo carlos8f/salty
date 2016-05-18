@@ -387,6 +387,7 @@ module.exports = {
       else withWallet(recipient)
     })
     function withWallet (recipient, wallet) {
+      /*
       process.stderr.write('Compose message: (CTL-D when done)\n\n> ')
       var lines = []
       process.stdin.once('end', function () {
@@ -400,42 +401,63 @@ module.exports = {
           getLine()
         })
       })()
+      */
+      withMessage()
       function withMessage (m) {
-        var outStream = self._encryptStream(recipient, nonce, from([m]), m.length, wallet)
+        m = Buffer('hi guys, its carlos')
+        var outStream = self._encryptStream(recipient, nonce, from([m]), wallet)
         var chunks = []
         outStream.on('data', function (chunk) {
           chunks.push(chunk)
         })
         outStream.once('end', function () {
-          var output = pemtools(Buffer.concat(chunks), 'SALTY MESSAGE')
+          var buf = Buffer.concat(chunks)
+          console.error('ctxt len', buf.length)
+          var output = pemtools(buf, 'SALTY MESSAGE')
           console.log('\n\n' + colors.yellow(output) + '\n')
         })
       }
     }
   },
-  _encryptStream: function (recipient, nonce, inStream, totalSize, wallet) {
+  _encryptStream: function (recipient, nonce, inStream, wallet) {
     var self = this
     nonce || (nonce = salty.nonce())
     var eph = salty.ephemeral(recipient, nonce)
     var ended = false
     var encryptor = eph.createEncryptor(function isLast () {
+      console.error('IS LAST', ended)
       return ended
     })
+    var bytesEncrypted = 0
     var hashStream = eph.createHmac()
     var header = Object.create(null)
     var outStream = through()
+    encryptor.on('data', function (chunk) {
+      console.error('enc chunk', chunk)
+      outStream.write(chunk)
+    })
+    encryptor.once('end', function () {
+      console.error('ENCRYPTOR END')
+      outStream.end()
+    })
     
     inStream.pause()
     inStream.on('data', function (chunk) {
+      console.error('in chunk', chunk)
       encryptor.write(chunk)
+      bytesEncrypted += chunk.length
     })
     inStream.once('end', function () {
       ended = true
-      if (header['hash']) withHash()
+      console.error('IN END')
     })
 
     function withHash () {
+      assert(header['hash'])
+      console.error('encrypted', bytesEncrypted, 'bytes')
       var headerBuf = Buffer('\r\n\r\n' + self._writeHeader(header))
+      bytesEncrypted += headerBuf.length
+      console.error('ENDING WITH HEADER', headerBuf.toString())
       encryptor.end(headerBuf)
     }
 
@@ -444,17 +466,108 @@ module.exports = {
       if (wallet) {
         header['from-salty-id'] = wallet.pubkey.toBuffer().toString('base64')
         header['to-salty-id'] = recipient.toBuffer().toString('base64')
+        if (header['to-salty-id'] === header['from-salty-id']) {
+          header['to-salty-id'] = 'self'
+        }
         header['signature'] = wallet.sign(Buffer(self._writeHeader(header)), true).toString('base64')
       }
-      if (ended) withHash()
+      console.error('HASH END')
+      withHash()
     })
 
     setImmediate(function () {
+      console.error('write eph', eph.toBuffer())
       outStream.write(eph.toBuffer())
-      encryptor.pipe(outStream)
       inStream.pipe(hashStream)
       inStream.resume()
     })
+
+    outStream.once('end', function () {
+      console.error('OUT END')
+    })
+
+    return outStream
+  },
+  _decryptStream: function (inStream, totalSize, wallet) {
+    var self = this
+    var outStream = through()
+    var decryptor, hashStream, eph
+    var chunks = []
+    var ended = false
+    function parseEphemeral (chunk) {
+      console.error('PARSE EPH', chunk.length)
+      chunks.push(chunk)
+      var buf = Buffer.concat(chunks)
+      if (buf.length >= 56) {
+        var ephSlice = buf.slice(0, 56)
+        chunks = [buf.slice(56)]
+        console.error('after EPH', chunks[0].length)
+        withEphSlice(ephSlice)
+      }
+    }
+    inStream.on('data', parseEphemeral)
+    inStream.once('end', function () {
+      ended = true
+      console.error('IN END', ended)
+    })
+    function withEphSlice (buf) {
+      var eph = salty.parseEphemeral(wallet, buf)
+      inStream.removeListener('data', parseEphemeral)
+      var decryptor = eph.createDecryptor(totalSize - 56)
+      var hashStream = eph.createHmac()
+      var tail = []
+      var bytesRead = 0
+      var header = ''
+      var tailBuf
+
+      function parseHeader (chunk) {
+        console.error('PARSE HEADER', chunk.length)
+        bytesRead += chunk.length
+        tail.push(chunk)
+        var tmp = Buffer.concat(tail)
+        console.error('tmp', tmp)
+        var str = tmp.toString('utf8')
+        console.error('str', str)
+        if (bytesRead >= totalSize - 1000) {
+          var delimIdx = str.indexOf('\r\n\r\n')
+          if (delimIdx !== -1) {
+            console.error('DELIM', chunk.toString())
+            tailBuf = tmp.slice(0, delimIdx)
+            outStream.end(tailBuf)
+            hashStream.end(tailBuf)
+            header = tmp.slice(delimIdx + 4).toString()
+          }
+          else if (header) {
+            console.error('HEADER CHUNK', chunk.length)
+            header += chunk.toString()
+          }
+          else {
+            console.error('? chunk', chunk.length)
+            outStream.write(chunk)
+            hashStream.write(chunk)
+          }
+        }
+        else {
+          console.error('body chunk', chunk.length)
+          outStream.write(chunk)
+          hashStream.write(chunk)
+        }
+      }
+      decryptor.on('data', parseHeader)
+      decryptor.on('end', function () {
+        console.error('decrypted', bytesRead, 'bytes')
+      })
+      console.error('writing to dec', chunks[0].length)
+      decryptor.write(Buffer.concat(chunks))
+      console.error('ended', ended)
+      inStream.on('data', function (chunk) {
+        console.error('IN DATA', chunk.length)
+      })
+      inStream.once('end', function () {
+        console.error('ENDING DEC')
+      })
+      inStream.pipe(decryptor)
+    }
 
     return outStream
   },
@@ -660,12 +773,20 @@ module.exports = {
   decryptMessage: function (inPath) {
     // decrypt a stream with wallet
     var self = this
-    this.init(function (err, wallet) {
+    salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
       if (err) throw err
-      self.headersFromPEM(inPath, true, function (err, header, header_length, ctxt) {
+
+      var inStat = fs.statSync(inPath)
+      fs.readFile(inPath, {encoding: 'utf8'}, function (err, raw) {
         if (err) throw err
-        withHeaders(header, header_length, ctxt)
+        var pem = pemtools(raw, 'SALTY MESSAGE')
+        var buf = pem.toBuffer()
+        console.error('pem buf len', buf.length)
+        var inStream = from([buf])
+        var outStream = self._decryptStream(inStream, inStat.size, wallet)
+        outStream.pipe(process.stdout)
       })
+
       function withHeaders (header, header_length, ctxt) {
         var decryptor
         if (header['to-salty-id'] && header['to-salty-id'] !== wallet.identity.toString()) {
