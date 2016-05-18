@@ -79,10 +79,10 @@ salty.ephemeral = function (pubkey, nonce) {
   var k = Buffer(nacl.box.before(pubkey.encryptPk, boxKey.secretKey))
   boxKey.secretKey = null
   return {
-    encryptPk: boxKey.publicKey,
+    encryptPk: Buffer(boxKey.publicKey),
     nonce: nonce,
-    createEncryptor: function (totalSize) {
-      var enc = salty.encryptor(this.nonce, k, totalSize)
+    createEncryptor: function (isLast) {
+      return salty.encryptor(this.nonce, k, isLast)
     },
     toBuffer: function () {
       return Buffer.concat([
@@ -110,7 +110,7 @@ salty.parseEphemeral = function (wallet, buf) {
     encryptPk: encryptPk,
     nonce: nonce,
     createDecryptor: function (totalSize) {
-      return salty.decryptor(this.nonce, k, totalSize)
+      return salty.decryptor(this.nonce, k, totalSize - 56)
     },
     createHmac: function () {
       return chacha.createHmac(k)
@@ -152,12 +152,12 @@ salty.loadWallet = function (inPath, cb) {
         }
         if (err) return cb(err)
         try {
-          var pubkey = salty.parsePubkey(str)
+          wallet.pubkey = salty.parsePubkey(str)
         }
         catch (e) {
           return cb(e)
         }
-        cb(null, wallet, pubkey)
+        cb(null, wallet)
       })
     }
   })
@@ -245,16 +245,15 @@ salty.parseWallet = function (buf) {
   }
 }
 
-salty.encryptor = function (nonce, k, totalSize) {
+salty.encryptor = function (nonce, k, isLast) {
   var n = nonce.slice(0, 16)
   var size = 0
   var encryptor = nacl.stream.createEncryptor(a(k), a(n), 65536)
   return through(function write (data) {
     size += data.length
-    var isLast = size === totalSize
-    var encryptedChunk = encryptor.encryptChunk(a(data), isLast)
+    var encryptedChunk = encryptor.encryptChunk(a(data), isLast())
     this.queue(Buffer(encryptedChunk))
-    if (isLast) {
+    if (isLast()) {
       encryptor.clean()
     }
   })
