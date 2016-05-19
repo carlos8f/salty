@@ -392,10 +392,12 @@ module.exports = {
           assert(hash)
           var header = self._validateHeader(headerStr, hash)
           var me = wallet.pubkey.toBuffer().toString('base64')
-          if (header['from-salty-id'] && header['to-salty-id'] === 'self' && header['from-salty-id'] !== me) {
-            return outStream.emit('error', new Error('to-salty-id is self, not addressed to you'))
+          if (header['to-salty-id'] === 'self') {
+            if (header['from-salty-id'] !== me) {
+              return outStream.emit('error', new Error('to-salty-id is self, not addressed to you'))
+            }
           }
-          if (header['to-salty-id'] && header['to-salty-id'] !== 'self' && header['to-salty-id'] !== me) {
+          else if (header['to-salty-id'] && header['to-salty-id'] !== me) {
             return outStream.emit('error', new Error('to-salty-id is not addressed to you'))
           }
           outStream.emit('header', header)
