@@ -21,15 +21,20 @@ var salty = module.exports = {
   }
 }
 
-salty.parsePubkey = function (str) {
+salty.parsePubkey = function (input) {
+  var buf
   try {
-    var match = str.match(/(?:salty\-id)?\s*([a-zA-Z0-9-\_]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/)
-    assert(match)
-    var buf = Buffer(base64url.unescape(match[1]), 'base64')
+    if (Buffer.isBuffer(input)) {
+      buf = input
+    }
+    else {
+      var match = input.match(/(?:salty\-id)?\s*([a-zA-Z0-9-\_]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/)
+      assert(match)
+      buf = Buffer(base64url.unescape(match[1]), 'base64')
+    }
     assert(buf.length, 64)
   }
   catch (e) {
-    throw e
     throw new Error('invalid pubkey')
   }
   return {
@@ -270,34 +275,15 @@ salty.decryptor = function (nonce, k, totalSize) {
     var isLast = size === totalSize
     while (buf.length) {
       var len = nacl.stream.readChunkLength(buf)
-      console.error('read chunk len....', len)
       if (buf.length < len + 20) {
-        console.error('short', buf.length, len + 20)
         return
       }
       var chunk = buf.slice(0, len + 20)
-      if (chunk.length < len + 20) {
-        console.error('too short')
-        break
-      }
       buf = buf.slice(len + 20)
-      console.error('attempting to decrypt chunk', chunk.length, isLast, buf.length)
       var decryptedChunk = decryptor.decryptChunk(a(chunk), !buf.length)
-      console.error('dec chunk', Buffer(decryptedChunk).length)
-      console.error('left over', buf.length)
-      this.queue(Buffer(decryptedChunk))
-    }
-
-    if (isLast && buf.length) {
-      console.error('last, decrypting final')
-      len = nacl.stream.readChunkLength(buf)
-      chunk = buf.slice(0, len + 20)
-      decryptedChunk = decryptor.decryptChunk(a(chunk), true)
-      console.error('dec FINAL chunk', Buffer(decryptedChunk).length)
       this.queue(Buffer(decryptedChunk))
     }
     if (isLast) {
-      console.error('FINAL CLEAN')
       decryptor.clean()
     }
   })

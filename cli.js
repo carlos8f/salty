@@ -113,133 +113,7 @@ module.exports = {
       if (header['to-salty-id'] && recipients[header['to-salty-id']]) {
         header['to-salty-id'] = recipients[header['to-salty-id']].toNiceString()
       }
-      if (header['signature']) header['signature'] = 'OK'
       cb(null, header)
-    })
-  },
-  headers: function (inPath, noTranslate, cb) {
-    if (typeof noTranslate === 'function') {
-      cb = noTranslate
-      noTranslate = false
-    }
-    var self = this
-    child_process.exec('tail -c 1000 "' + inPath + '"', function (err, stdout, stderr) {
-      assert.ifError(err)
-      var header = Object.create(null)
-      var full = stdout.toString()
-      var parts = full.split('\r\n\r\n')
-      var headers = parts.length === 2 ? parts[1] : parts[0]
-      headers.split('\r\n').forEach(function (line) {
-        if (!line.trim()) return
-        var parts = line.trim().split(': ')
-        if (parts.length !== 2) throw new Error('failed to read header')
-        if (typeof header[parts[0].toLowerCase()] !== 'undefined') throw new Error('cannot redefine header')
-        header[parts[0].toLowerCase()] = parts[1]
-      })
-      var header_length = headers.length + 4
-      if (!header['from-salty-id']) throw new Error('from-salty-id header required')
-      try {
-        var identity = salty.identity(header['from-salty-id'])
-      }
-      catch (e) {
-        throw new Error('invalid from-salty-id')
-      }
-      if (header['to-salty-id']) {
-        try {
-          var to_identity = salty.identity(header['to-salty-id'])
-        }
-        catch (e) {
-          throw new Error('invalid to-salty-id')
-        }
-      }
-      if (!header['hash']) throw new Error('hash header is required')
-      if (!header['signature']) throw new Error('signature header is required')
-      var signedStr = identity.verify(Buffer(header['signature'], 'base64'))
-      if (!signedStr) {
-        throw new Error('signature verification failed')
-      }
-      var signed_header = Object.create(null)
-      signedStr.toString('utf8').split('\r\n').forEach(function (line) {
-        if (!line) return
-        var parts = line.split(': ')
-        if (parts.length !== 2) throw new Error('failed to read signed header')
-        if (typeof signed_header[parts[0].toLowerCase()] !== 'undefined') throw new Error('cannot redefine signed header')
-        signed_header[parts[0].toLowerCase()] = parts[1]
-      })
-      Object.keys(header).forEach(function (k) {
-        if (k !== 'signature' && signed_header[k] !== header[k]) {
-          throw new Error('mismatched header ' + k + ', value ' + header[k] + ' vs. signed header ' + signed_header[k])
-        }
-      })
-      if (noTranslate) return cb(null, header, header_length)
-      self.translateHeader(header, function (err, header) {
-        if (err) throw new Error('error translating headers')
-        cb(null, header, header_length)
-      })
-    })
-  },
-  headersFromPEM: function (inPath, noTranslate, cb) {
-    if (typeof noTranslate === 'function') {
-      cb = noTranslate
-      noTranslate = false
-    }
-    var self = this
-    fs.readFile(inPath, {encoding: 'utf8'}, function (err, raw) {
-      assert.ifError(err)
-      var pem = pemtools(raw, 'SALTY MESSAGE')
-      var header = Object.create(null)
-      var full = pem.toBuffer().toString('utf8')
-      var parts = full.split('\r\n\r\n')
-      var headers = parts.length === 2 ? parts[1] : parts[0]
-      headers.split('\r\n').forEach(function (line) {
-        if (!line.trim()) return
-        var parts = line.trim().split(': ')
-        if (parts.length !== 2) throw new Error('failed to read header')
-        if (typeof header[parts[0].toLowerCase()] !== 'undefined') throw new Error('cannot redefine header')
-        header[parts[0].toLowerCase()] = parts[1]
-      })
-      var header_length = headers.length + 4
-      if (!header['from-salty-id']) throw new Error('from-salty-id header required')
-      try {
-        var identity = salty.identity(header['from-salty-id'])
-      }
-      catch (e) {
-        throw new Error('invalid from-salty-id')
-      }
-      if (header['to-salty-id']) {
-        try {
-          var to_identity = salty.identity(header['to-salty-id'])
-        }
-        catch (e) {
-          throw new Error('invalid to-salty-id')
-        }
-      }
-      if (!header['hash']) throw new Error('hash header is required')
-      if (!header['signature']) throw new Error('signature header is required')
-      var signedStr = identity.verify(Buffer(header['signature'], 'base64'))
-      if (!signedStr) {
-        throw new Error('signature verification failed')
-      }
-      var signed_header = Object.create(null)
-      signedStr.toString('utf8').split('\r\n').forEach(function (line) {
-        if (!line) return
-        var parts = line.split(': ')
-        if (parts.length !== 2) throw new Error('failed to read signed header')
-        if (typeof signed_header[parts[0].toLowerCase()] !== 'undefined') throw new Error('cannot redefine signed header')
-        signed_header[parts[0].toLowerCase()] = parts[1]
-      })
-      Object.keys(header).forEach(function (k) {
-        if (k !== 'signature' && signed_header[k] !== header[k]) {
-          throw new Error('mismatched header ' + k + ', value ' + header[k] + ' vs. signed header ' + signed_header[k])
-        }
-      })
-      var buf = pem.toBuffer()
-      var ctxt = buf.slice(0, buf.length - header_length)
-      if (noTranslate) return cb(null, header, header_length, ctxt)
-      self.translateHeader(header, function (err, header) {
-        if (err) throw new Error('error translating headers')
-        cb(null, header, header_length, ctxt)
-      })
     })
   },
   getPubkey: function (inPath, cb) {
@@ -387,7 +261,6 @@ module.exports = {
       else withWallet(recipient)
     })
     function withWallet (recipient, wallet) {
-      /*
       process.stderr.write('Compose message: (CTL-D when done)\n\n> ')
       var lines = []
       process.stdin.once('end', function () {
@@ -401,10 +274,8 @@ module.exports = {
           getLine()
         })
       })()
-      */
       withMessage()
       function withMessage (m) {
-        m = Buffer('hi guys, its carlos')
         var outStream = self._encryptStream(recipient, nonce, from([m]), wallet)
         var chunks = []
         outStream.on('data', function (chunk) {
@@ -412,7 +283,6 @@ module.exports = {
         })
         outStream.once('end', function () {
           var buf = Buffer.concat(chunks)
-          console.error('ctxt len', buf.length)
           var output = pemtools(buf, 'SALTY MESSAGE')
           console.log('\n\n' + colors.yellow(output) + '\n')
         })
@@ -425,7 +295,6 @@ module.exports = {
     var eph = salty.ephemeral(recipient, nonce)
     var ended = false
     var encryptor = eph.createEncryptor(function isLast () {
-      console.error('IS LAST', ended)
       return ended
     })
     var bytesEncrypted = 0
@@ -433,31 +302,26 @@ module.exports = {
     var header = Object.create(null)
     var outStream = through()
     encryptor.on('data', function (chunk) {
-      console.error('enc chunk', chunk)
       outStream.write(chunk)
     })
     encryptor.once('end', function () {
-      console.error('ENCRYPTOR END')
       outStream.end()
     })
     
     inStream.pause()
     inStream.on('data', function (chunk) {
-      console.error('in chunk', chunk)
       encryptor.write(chunk)
       bytesEncrypted += chunk.length
     })
     inStream.once('end', function () {
       ended = true
-      console.error('IN END')
     })
 
     function withHash () {
       assert(header['hash'])
-      console.error('encrypted', bytesEncrypted, 'bytes')
+      outStream.emit('header', header)
       var headerBuf = Buffer('\r\n\r\n' + self._writeHeader(header))
       bytesEncrypted += headerBuf.length
-      console.error('ENDING WITH HEADER', headerBuf.toString())
       encryptor.end(headerBuf)
     }
 
@@ -471,19 +335,13 @@ module.exports = {
         }
         header['signature'] = wallet.sign(Buffer(self._writeHeader(header)), true).toString('base64')
       }
-      console.error('HASH END')
       withHash()
     })
 
     setImmediate(function () {
-      console.error('write eph', eph.toBuffer())
       outStream.write(eph.toBuffer())
       inStream.pipe(hashStream)
       inStream.resume()
-    })
-
-    outStream.once('end', function () {
-      console.error('OUT END')
     })
 
     return outStream
@@ -493,83 +351,134 @@ module.exports = {
     var outStream = through()
     var decryptor, hashStream, eph
     var chunks = []
-    var ended = false
     function parseEphemeral (chunk) {
-      console.error('PARSE EPH', chunk.length)
       chunks.push(chunk)
       var buf = Buffer.concat(chunks)
       if (buf.length >= 56) {
         var ephSlice = buf.slice(0, 56)
         chunks = [buf.slice(56)]
-        console.error('after EPH', chunks[0].length)
         withEphSlice(ephSlice)
       }
     }
     inStream.on('data', parseEphemeral)
-    inStream.once('end', function () {
-      ended = true
-      console.error('IN END', ended)
-    })
     function withEphSlice (buf) {
-      var eph = salty.parseEphemeral(wallet, buf)
-      inStream.removeListener('data', parseEphemeral)
-      var decryptor = eph.createDecryptor(totalSize)
-      var hashStream = eph.createHmac()
       var tail = []
       var bytesRead = 0
       var header = ''
       var tailBuf
+      var ended = false
+      inStream.removeListener('data', parseEphemeral)
 
+      try {
+        var eph = salty.parseEphemeral(wallet, buf)
+        var decryptor = eph.createDecryptor(totalSize)
+        var hashStream = eph.createHmac()
+      }
+      catch (e) {
+        return outStream.emit('error', e)
+      }
+      var hash
+      hashStream.once('data', function (h) {
+        hash = h
+        outStream.emit('hash', hash)
+        if (ended) withHeader()
+      })
+
+      function withHeader () {
+        try {
+          assert(ended)
+          assert(tailBuf)
+          assert(header)
+          assert(hash)
+          self._validateHeader(header)
+          assert.strictEqual(header['hash'], hash.toString('base64'))
+          outStream.emit('header', header)
+          outStream.end(tailBuf)
+        }
+        catch (e) {
+          return outStream.emit('error', e)
+        }
+      }
       function parseHeader (chunk) {
-        console.error('PARSE HEADER', chunk.length)
-        bytesRead += chunk.length
-        tail.push(chunk)
-        var tmp = Buffer.concat(tail)
-        console.error('tmp', tmp)
-        var str = tmp.toString('utf8')
-        console.error('str', str)
-        if (bytesRead >= totalSize - 1000) {
-          var delimIdx = str.indexOf('\r\n\r\n')
-          if (delimIdx !== -1) {
-            console.error('DELIM', chunk.toString())
-            tailBuf = tmp.slice(0, delimIdx)
-            outStream.end(tailBuf)
-            hashStream.end(tailBuf)
-            header = tmp.slice(delimIdx + 4).toString()
-          }
-          else if (header) {
-            console.error('HEADER CHUNK', chunk.length)
-            header += chunk.toString()
+        try {
+          bytesRead += chunk.length
+          tail.push(chunk)
+          if (bytesRead >= totalSize - 1000) {
+            var tmp = Buffer.concat(tail)
+            var str = tmp.toString('utf8')
+            var delimIdx = str.indexOf('\r\n\r\n')
+            if (delimIdx !== -1) {
+              tailBuf = tmp.slice(0, delimIdx)
+              hashStream.end(tailBuf)
+              header = tmp.slice(delimIdx + 4).toString()
+            }
+            else if (header) {
+              header += chunk.toString()
+            }
+            else {
+              outStream.write(chunk)
+              hashStream.write(chunk)
+            }
           }
           else {
-            console.error('? chunk', chunk.length)
             outStream.write(chunk)
             hashStream.write(chunk)
           }
         }
-        else {
-          console.error('body chunk', chunk.length)
-          outStream.write(chunk)
-          hashStream.write(chunk)
+        catch (e) {
+          return outStream.emit('error', e)
         }
       }
       decryptor.on('data', parseHeader)
-      decryptor.on('end', function () {
-        console.error('decrypted', bytesRead, 'bytes')
+      decryptor.once('end', function () {
+        ended = true
+        if (hash) withHeader()
       })
-      console.error('writing to dec', chunks[0].length)
       decryptor.write(Buffer.concat(chunks))
-      console.error('ended', ended)
-      inStream.on('data', function (chunk) {
-        console.error('IN DATA', chunk.length)
-      })
-      inStream.once('end', function () {
-        console.error('ENDING DEC')
-      })
       inStream.pipe(decryptor)
     }
 
     return outStream
+  },
+  _validateHeader: function (header) {
+    var identity, to_identity, hash
+    if (header['from-salty-id']) {
+      try {
+        identity = salty.parsePubkey(Buffer(header['from-salty-id'], 'base64'))
+      }
+      catch (e) {
+        throw new Error('invalid from-salty-id')
+      }
+    }
+    if (header['to-salty-id']) {
+      try {
+        to_identity = salty.parsePubkey(Buffer(header['to-salty-id'], 'base64'))
+      }
+      catch (e) {
+        throw new Error('invalid to-salty-id')
+      }
+    }
+    if (header['hash']) {
+      hash = Buffer(header['hash'], 'base64')
+    }
+    if (header['signature']) {
+      assert(identity)
+      var headerCopy = Object.create(null)
+      Object.keys(header).forEach(function (k) {
+        headerCopy[k] = header[k]
+      })
+      delete headerCopy['signature']
+      var buf = Buffer(this._writeHeader(headerCopy))
+      var ok = identity.verify(Buffer(header['signature'], 'base64'), buf)
+      assert(ok)
+      header['signature'] = 'OK'
+    }
+    else if (header['from-salty-id']) {
+      throw new Error('from-salty-id header requires signature')
+    }
+    else if (header['to-salty-id']) {
+      throw new Error('to-salty-id header requires signature')
+    }
   },
   _writeHeader: function (header) {
     var out = ''
@@ -781,9 +690,15 @@ module.exports = {
         if (err) throw err
         var pem = pemtools(raw, 'SALTY MESSAGE')
         var buf = pem.toBuffer()
-        console.error('pem buf len', buf.length)
         var inStream = from([buf])
         var outStream = self._decryptStream(inStream, inStat.size, wallet)
+        var hash, header
+        outStream.once('hash', function (h) {
+          hash = h
+        })
+        outStream.once('header', function (h) {
+          header = h
+        })
         outStream.pipe(process.stdout)
       })
 

@@ -58,6 +58,7 @@ $ npm install -g salty
     - decrypt with secBob + pubEph, nonce
     - encrypted payload: plain text, private header
     - private header: from-salty-id (optional), to-salty-id (required if has from) hash (required, key=secBob + pubEph) signature (required if has from)
+- detect backpressure, mem perf
 
 - - -
 
