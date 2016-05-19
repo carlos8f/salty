@@ -40,8 +40,8 @@ salty.parsePubkey = function (input) {
   return {
     encryptPk: buf.slice(0, 32),
     verifyPk: buf.slice(32),
-    name: match[2],
-    email: match[3] ? match[3].toLowerCase() : null,
+    name: match ? match[2] : null,
+    email: match && match[3] ? match[3].toLowerCase() : null,
     verify: function (sig, detachedBuf) {
       if (detachedBuf) {
         return nacl.sign.detached.verify(a(detachedBuf), a(sig), a(this.verifyPk)) ? detachedBuf : false

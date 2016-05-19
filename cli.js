@@ -274,7 +274,6 @@ module.exports = {
           getLine()
         })
       })()
-      withMessage()
       function withMessage (m) {
         var outStream = self._encryptStream(recipient, nonce, from([m]), wallet)
         var chunks = []
@@ -320,7 +319,8 @@ module.exports = {
     function withHash () {
       assert(header['hash'])
       outStream.emit('header', header)
-      var headerBuf = Buffer('\r\n\r\n' + self._writeHeader(header))
+      var headerStr = self._writeHeader(header)
+      var headerBuf = Buffer('\r\n\r\n' + headerStr)
       bytesEncrypted += headerBuf.length
       encryptor.end(headerBuf)
     }
@@ -364,7 +364,7 @@ module.exports = {
     function withEphSlice (buf) {
       var tail = []
       var bytesRead = 0
-      var header = ''
+      var headerStr = ''
       var tailBuf
       var ended = false
       inStream.removeListener('data', parseEphemeral)
@@ -388,10 +388,16 @@ module.exports = {
         try {
           assert(ended)
           assert(tailBuf)
-          assert(header)
+          assert(headerStr)
           assert(hash)
-          self._validateHeader(header)
-          assert.strictEqual(header['hash'], hash.toString('base64'))
+          var header = self._validateHeader(headerStr, hash)
+          var me = wallet.pubkey.toBuffer().toString('base64')
+          if (header['from-salty-id'] && header['to-salty-id'] === 'self' && header['from-salty-id'] !== me) {
+            return outStream.emit('error', new Error('to-salty-id is self, not addressed to you'))
+          }
+          if (header['to-salty-id'] && header['to-salty-id'] !== 'self' && header['to-salty-id'] !== me) {
+            return outStream.emit('error', new Error('to-salty-id is not addressed to you'))
+          }
           outStream.emit('header', header)
           outStream.end(tailBuf)
         }
@@ -402,27 +408,28 @@ module.exports = {
       function parseHeader (chunk) {
         try {
           bytesRead += chunk.length
-          tail.push(chunk)
           if (bytesRead >= totalSize - 1000) {
+            tail.push(chunk)
             var tmp = Buffer.concat(tail)
             var str = tmp.toString('utf8')
-            var delimIdx = str.indexOf('\r\n\r\n')
+            var delimIdx = str.indexOf('\r')
             if (delimIdx !== -1) {
               tailBuf = tmp.slice(0, delimIdx)
               hashStream.end(tailBuf)
-              header = tmp.slice(delimIdx + 4).toString()
+              headerStr = tmp.slice(delimIdx + 4).toString()
             }
-            else if (header) {
-              header += chunk.toString()
+            else if (headerStr) {
+              headerStr += chunk.toString()
             }
             else {
-              outStream.write(chunk)
               hashStream.write(chunk)
+              outStream.write(chunk)
+              tail = []
             }
           }
           else {
-            outStream.write(chunk)
             hashStream.write(chunk)
+            outStream.write(chunk)
           }
         }
         catch (e) {
@@ -434,14 +441,21 @@ module.exports = {
         ended = true
         if (hash) withHeader()
       })
-      decryptor.write(Buffer.concat(chunks))
+      var head = Buffer.concat(chunks)
+      decryptor.write(head)
       inStream.pipe(decryptor)
     }
 
     return outStream
   },
-  _validateHeader: function (header) {
-    var identity, to_identity, hash
+  _validateHeader: function (headerStr, hash) {
+    var identity, to_identity
+    var header = Object.create(null)
+    headerStr.trim().split('\r\n').forEach(function (line) {
+      var parts = line.split(':')
+      assert.equal(parts.length, 2, 'invalid header line')
+      header[parts[0].trim().toLowerCase()] = parts[1].trim()
+    })
     if (header['from-salty-id']) {
       try {
         identity = salty.parsePubkey(Buffer(header['from-salty-id'], 'base64'))
@@ -450,7 +464,7 @@ module.exports = {
         throw new Error('invalid from-salty-id')
       }
     }
-    if (header['to-salty-id']) {
+    if (header['to-salty-id'] && header['to-salty-id'] !== 'self') {
       try {
         to_identity = salty.parsePubkey(Buffer(header['to-salty-id'], 'base64'))
       }
@@ -458,9 +472,7 @@ module.exports = {
         throw new Error('invalid to-salty-id')
       }
     }
-    if (header['hash']) {
-      hash = Buffer(header['hash'], 'base64')
-    }
+    assert.strictEqual(header['hash'], hash.toString('base64'), 'wrong signed hash')
     if (header['signature']) {
       assert(identity)
       var headerCopy = Object.create(null)
@@ -470,7 +482,7 @@ module.exports = {
       delete headerCopy['signature']
       var buf = Buffer(this._writeHeader(headerCopy))
       var ok = identity.verify(Buffer(header['signature'], 'base64'), buf)
-      assert(ok)
+      assert(ok, 'bad signature')
       header['signature'] = 'OK'
     }
     else if (header['from-salty-id']) {
@@ -479,6 +491,7 @@ module.exports = {
     else if (header['to-salty-id']) {
       throw new Error('to-salty-id header requires signature')
     }
+    return header
   },
   _writeHeader: function (header) {
     var out = ''
@@ -679,74 +692,49 @@ module.exports = {
       }
     })
   },
+  _printHeader: function (header) {
+    console.error(prettyjson.render(header, {
+      noColor: false,
+      keysColor: 'blue',
+      dashColor: 'magenta',
+      stringColor: 'grey'
+    }))
+  },
   decryptMessage: function (inPath) {
     // decrypt a stream with wallet
     var self = this
     salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
       if (err) throw err
 
-      var inStat = fs.statSync(inPath)
-      fs.readFile(inPath, {encoding: 'utf8'}, function (err, raw) {
+      self._getRecipients(function (err, recipients) {
         if (err) throw err
-        var pem = pemtools(raw, 'SALTY MESSAGE')
-        var buf = pem.toBuffer()
-        var inStream = from([buf])
-        var outStream = self._decryptStream(inStream, inStat.size, wallet)
-        var hash, header
-        outStream.once('hash', function (h) {
-          hash = h
-        })
-        outStream.once('header', function (h) {
-          header = h
-        })
-        outStream.pipe(process.stdout)
-      })
-
-      function withHeaders (header, header_length, ctxt) {
-        var decryptor
-        if (header['to-salty-id'] && header['to-salty-id'] !== wallet.identity.toString()) {
-          throw new Error('message addressed to some other salty-id')
-        }
-        var identity = salty.identity(header['from-salty-id'])
-        var nonce = salty.decode(header['nonce'])
-        var finalSize = 0
-        function withHash () {
-          assert(hash)
-          if (hash !== header['hash']) {
-            throw new Error('wrote bad hash ' + hash + ' != ' + header['hash'])
-          }
-          self.translateHeader(header, function (err, header) {
-            if (err) throw err
-            console.error(prettyjson.render(header, {
-              noColor: false,
-              keysColor: 'blue',
-              dashColor: 'magenta',
-              stringColor: 'grey'
-            }))
-            console.error()
-            process.stdout.write(colors.white(Buffer.concat(chunks).toString()))
-            console.error()
+        
+        var inStat = fs.statSync(inPath)
+        fs.readFile(inPath, {encoding: 'utf8'}, function (err, raw) {
+          if (err) throw err
+          var pem = pemtools(raw, 'SALTY MESSAGE')
+          var buf = pem.toBuffer()
+          var inStream = from([buf])
+          var outStream = self._decryptStream(inStream, inStat.size, wallet)
+          var hash, header
+          outStream.once('hash', function (h) {
+            hash = h
           })
-        }
-        decryptor = wallet.peerDecryptor(nonce, identity, ctxt.length)
-        var chunks = []
-        var finished = false
-        var hash
-        decryptor.on('data', function (chunk) {
-          chunks.push(chunk)
+          outStream.once('header', function (h) {
+            header = h
+            if (header['from-salty-id'] && recipients[header['from-salty-id']]) {
+              header['from-salty-id'] = recipients[header['from-salty-id']].toNiceString()
+            }
+            if (header['to-salty-id'] && recipients[header['to-salty-id']]) {
+              header['to-salty-id'] = recipients[header['to-salty-id']].toNiceString()
+            }
+            self._printHeader(header)
+          })
+          outStream.on('data', function (chunk) {
+            console.log(colors.white(chunk.toString()))
+          })
         })
-        decryptor.once('end', function () {
-          finished = true
-          if (hash) withHash()
-        })
-        var hashStream = chacha.createHmac(wallet.secret(identity))
-        hashStream.once('data', function (data) {
-          hash = data.toString('base64')
-          if (finished) withHash()
-        })
-        decryptor.pipe(hashStream)
-        decryptor.end(ctxt)
-      }
+      })
     })
   },
   ls: function (p) {
