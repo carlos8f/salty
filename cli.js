@@ -268,15 +268,6 @@ module.exports = {
 
     function withHash () {
       assert(header['hash'])
-      outStream.emit('header', header)
-      var headerStr = self._writeHeader(header)
-      var headerBuf = Buffer('\r\n\r\n' + headerStr)
-      bytesEncrypted += headerBuf.length
-      encryptor.end(headerBuf)
-    }
-
-    hashStream.once('data', function (hash) {
-      header['hash'] = hash.toString('base64')
       if (wallet) {
         header['from-salty-id'] = wallet.pubkey.toBuffer().toString('base64')
         header['to-salty-id'] = recipient.toBuffer().toString('base64')
@@ -285,6 +276,15 @@ module.exports = {
         }
         header['signature'] = wallet.sign(Buffer(self._writeHeader(header)), true).toString('base64')
       }
+      var headerStr = self._writeHeader(header)
+      var headerBuf = Buffer('\r\n\r\n' + headerStr)
+      outStream.emit('header', header)
+      bytesEncrypted += headerBuf.length
+      encryptor.end(headerBuf)
+    }
+
+    hashStream.once('data', function (hash) {
+      header['hash'] = hash.toString('base64')
       withHash()
     })
 
@@ -435,7 +435,7 @@ module.exports = {
         throw new Error('invalid to-salty-id')
       }
     }
-    //assert.strictEqual(header['hash'], hash.toString('base64'), 'wrong signed hash')
+    assert.strictEqual(header['hash'], hash.toString('base64'), 'wrong signed hash')
     if (header['signature']) {
       assert(identity)
       var headerCopy = Object.create(null)
