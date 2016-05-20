@@ -334,21 +334,16 @@ module.exports = {
       var hash
       hashStream.once('data', function (h) {
         if (!tailBuf) throw new Error('no header found')
-        console.error('hash DATA', h)
         hash = h
         outStream.emit('hash', hash)
         if (ended) withHeader()
       })
       outStream.on('data', function (chunk) {
-        if (headerStr) console.error('output data after header', chunk.length, chunk)
-        console.error('outstream DATA', chunk.length, hash)
-        if (!headerStr) {
-          hashStream.write(chunk)
-        }
+        if (headerStr) throw new Error('output data after header')
+        hashStream.write(chunk)
       })
 
       function withHeader () {
-        console.trace('with header')
         try {
           assert(ended)
           assert(tailBuf)
@@ -372,7 +367,6 @@ module.exports = {
         }
       }
       function parseHeader (chunk) {
-        console.error('parse header', chunk)
         try {
           bytesRead += chunk.length
           if (bytesRead >= totalSize - 1000) {
@@ -381,26 +375,22 @@ module.exports = {
             var str = tmp.toString('utf8')
             var delimIdx = str.indexOf('\r')
             if (delimIdx !== -1) {
-              console.error('DELIM', delimIdx)
               tailBuf = tmp.slice(0, delimIdx)
               if (tailBuf.length) {
-                console.error('tail buf', tailBuf.length)
                 outStream.write(tailBuf)
               }
+              hashStream.end()
               headerStr = tmp.slice(delimIdx + 4).toString()
             }
             else if (headerStr) {
-              console.error('headerStr')
               headerStr += chunk.toString()
             }
             else {
-              console.error('tail zero', chunk.length)
               outStream.write(tmp)
               tail = []
             }
           }
           else {
-            console.error('out write', chunk.length)
             outStream.write(chunk)
           }
         }
@@ -412,12 +402,11 @@ module.exports = {
       decryptor.once('end', function () {
         ended = true
         if (!tailBuf) throw new Error('no header found')
-        hashStream.end()
+        if (hash) withHeader()
       })
       var head = Buffer.concat(chunks)
       decryptor.write(head)
       inStream.pipe(decryptor)
-      inStream.pause()
     }
 
     return outStream
@@ -446,7 +435,7 @@ module.exports = {
         throw new Error('invalid to-salty-id')
       }
     }
-    assert.strictEqual(header['hash'], hash.toString('base64'), 'wrong signed hash')
+    //assert.strictEqual(header['hash'], hash.toString('base64'), 'wrong signed hash')
     if (header['signature']) {
       assert(identity)
       var headerCopy = Object.create(null)
@@ -575,21 +564,14 @@ module.exports = {
       }
     }
     inStream.pause()
-    inStream.once('end', function () {
-      console.error('inStream END')
-    })
-    inStream.on('data', function (chunk) {
-      console.error('inStream DATA', chunk.length)
-    })
 
     salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
       if (err) throw err
       self._getRecipients(function (err, recipients) {
         if (err) throw err
-        var outStream = fs.createWriteStream(outPath, {mode: parseInt('0644', 8)})
+        var outStream = fs.createWriteStream(outPath, {mode: parseInt('0600', 8)})
         var decryptor = self._decryptStream(inStream, inStat.size, wallet)
         decryptor.once('header', function (header) {
-          console.error('HEADER', header)
           if (header['from-salty-id'] && recipients[header['from-salty-id']]) {
             header['from-salty-id'] = recipients[header['from-salty-id']].toNiceString()
           }
@@ -598,14 +580,10 @@ module.exports = {
           }
           self._printHeader(header)
         })
-        decryptor.once('end', function () {
-          console.error('CLI DECRYPTOR END')
-        })
         var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
         var byteCounter = 0
         var chunkCounter = 0
         var tickCounter = 0
-        /*
         decryptor.on('data', function (chunk) {
           tickCounter += chunk.length
           byteCounter += chunk.length
@@ -622,12 +600,12 @@ module.exports = {
             }
           }
         })
-        */
         outStream.once('finish', function () {
           if (del) fs.unlinkSync(inPath)
-          console.log('outStream FINISH decrypted to', outPath)
+          console.log('decrypted to', outPath)
         })
-        inStream.pipe(decryptor).pipe(outStream)
+        decryptor.pipe(outStream)
+        inStream.resume()
       })
     })
   },
