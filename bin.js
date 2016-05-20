@@ -11,6 +11,7 @@ var cli = require('./cli')
   , through = require('through')
   , path = require('path')
   , homeDir = process.env['USER'] === 'root' ? '/root' : process.env['HOME'] || '/home/' + process.env['USER']
+  , crypto = require('crypto')
 
 var program = require('commander')
   .version(require('./package.json').version)
@@ -124,16 +125,17 @@ program
       return cli.encryptMessage(options.to, options.nonce, options.sign)
     }
     if (options.armor) {
-      return cli.encryptPEM(options.to, infile, options.nonce, options.delete)
+      return cli.encryptPEM(options.to, infile, options.nonce, options.delete, options.sign)
     }
-    outfile || (outfile = infile + '.salty')
+    outfile || (outfile = crypto.randomBytes(4).toString('hex') + '.salty')
     cli.encrypt(
       options.to,
       infile,
       outfile,
       options.nonce ? salty.decode(options.nonce) : null,
       options.force,
-      options.delete
+      options.delete,
+      options.sign
     )
   })
 
