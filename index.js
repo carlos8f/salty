@@ -10,6 +10,8 @@ var nacl = require('tweetnacl')
 
 nacl.stream = require('nacl-stream').stream
 
+var MAX_CHUNK = 65535
+
 var a = function (buf) {
   return new Uint8Array(buf)
 }
@@ -261,7 +263,7 @@ salty.parseWallet = function (buf) {
 salty.encryptor = function (nonce, k, isLast) {
   var n = nonce.slice(0, 16)
   var size = 0
-  var encryptor = nacl.stream.createEncryptor(a(k), a(n), 65536)
+  var encryptor = nacl.stream.createEncryptor(a(k), a(n), MAX_CHUNK)
   return through(function write (data) {
     size += data.length
     var encryptedChunk = encryptor.encryptChunk(a(data), isLast())
@@ -275,7 +277,7 @@ salty.encryptor = function (nonce, k, isLast) {
 salty.decryptor = function (nonce, k, totalSize) {
   var n = nonce.slice(0, 16)
   var size = 0
-  var decryptor = nacl.stream.createDecryptor(a(k), a(n), 65536)
+  var decryptor = nacl.stream.createDecryptor(a(k), a(n), MAX_CHUNK)
   var buf = Buffer('')
   return through(function write (data) {
     size += data.length

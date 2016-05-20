@@ -21,6 +21,8 @@ var base64url = require('base64-url')
 
 var headerLength = 0
 
+var MAX_CHUNK = 65535
+
 module.exports = {
   init: function (outPath, name, email, cb) {
     fs.stat(outPath, function (err, stat) {
@@ -151,7 +153,7 @@ module.exports = {
     })
     function withWallet (recipient, wallet, recipients) {
       var inStat = fs.statSync(inPath)
-      var inStream = fs.createReadStream(inPath)
+      var inStream = fs.createReadStream(inPath).pipe(new BlockStream(MAX_CHUNK, {nopad: true}))
       var encryptor = self._encryptStream(recipient, nonce, inStream, wallet)
       encryptor.once('header', function (header) {
         if (header['from-salty-id'] && recipients[header['from-salty-id']]) {
@@ -463,95 +465,11 @@ module.exports = {
     })
     return out
   },
-  encryptPEM: function (email, inPath, nonce, del) {
-    var self = this
-    if (email) {
-      var parsedEmail = addrs.parseOneAddress(email)
-      if (!parsedEmail) throw new Error('invalid email address: ' + email)
-    }
-    this.init(function (err, wallet) {
-      if (err) throw err
-      if (!email) return withIdentity(wallet.identity)
-      var p = path.join(homeDir, '.salty', 'imported_keys')
-      fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
-        if (err && err.code === 'ENOENT') {
-          return withKeys('')
-        }
-        else if (err) throw err
-        withKeys(keys)
-      })
-      function withKeys (keys) {
-        keys = keys.trim().split('\n')
-        var chosen = null;
-        keys.forEach(function (key) {
-          if (!key) return
-          var parsed = self._parsePubkey(key)
-          if (parsed.parsedEmail.address.toLowerCase() === parsedEmail.address.toLowerCase()) {
-            chosen = parsed.identity
-          }
-        })
-        if (!chosen) {
-          throw new Error('email not found in imported_keys. run `salty import <pubkey>` first?')
-        }
-        withIdentity(chosen)
-      }
-      function withIdentity (identity) {
-        fs.readFile(inPath, function (err, m) {
-          if (err) throw err
-          withMessage(m)
-        })
-        function withMessage (m) {
-          nonce || (nonce = salty.nonce())
-          var encryptor = wallet.peerEncryptor(nonce, identity, m.length)
-          var header = {
-            'To-Salty-Id': identity.toString(),
-            'From-Salty-Id': wallet.identity.toString(),
-            'Nonce': salty.encode(nonce)
-          }
-          function writeHeader () {
-            var out = ''
-            Object.keys(header).forEach(function (k) {
-              out += k + ': ' + header[k] + '\r\n'
-            })
-            return out
-          }
-
-          var chunks = []
-          var finished = false
-          function withHash () {
-            var headerStr = writeHeader()
-            assert(header['Hash'])
-            header['Signature'] = wallet.sign(Buffer(headerStr)).toString('base64')
-            var finalHeader = writeHeader()
-            chunks.push(Buffer('\r\n\r\n' + finalHeader))
-            var ctxt = Buffer.concat(chunks)
-            var output = pemtools(ctxt, 'SALTY MESSAGE')
-            console.log(colors.yellow(output) + '\n')
-          }
-          encryptor.on('data', function (chunk) {
-            chunks.push(chunk)
-          })
-          encryptor.once('end', function () {
-            finished = true
-            if (header['Hash']) withHash()
-          })
-          var hashStream = chacha.createHmac(wallet.secret(identity))
-          hashStream.once('data', function (hash) {
-            header['Hash'] = hash.toString('base64')
-            if (finished) withHash()
-          })
-          
-          hashStream.end(m)
-          encryptor.end(m)
-        }
-      }
-    })
-  },
   decrypt: function (inPath, outPath, force, del) {
     // decrypt a stream with wallet
     var self = this
     var inStat = fs.statSync(inPath)
-    var inStream = fs.createReadStream(inPath)
+    var inStream = fs.createReadStream(inPath).pipe(new BlockStream(MAX_CHUNK, {nopad: true}))
     try {
       fs.statSync(outPath)
       if (!force) {
