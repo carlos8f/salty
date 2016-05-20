@@ -149,22 +149,30 @@ salty.loadWallet = function (inPath, cb) {
       catch (e) {
         return cb(e)
       }
-      fs.readFile(path.join(inPath, 'id_salty.pub'), {encoding: 'utf8'}, function (err, str) {
-        if (err && err.code === 'ENOENT') {
-          err = new Error('No salty-id found. Type `salty init` to create one.')
-          err.code = 'ENOENT'
-          return cb(err)
-        }
+      salty.loadPubkey(inPath, function (err, pubkey) {
         if (err) return cb(err)
-        try {
-          wallet.pubkey = salty.parsePubkey(str)
-        }
-        catch (e) {
-          return cb(e)
-        }
+        wallet.pubkey = pubkey
         cb(null, wallet)
       })
     }
+  })
+}
+
+salty.loadPubkey = function (inPath, cb) {
+  fs.readFile(path.join(inPath, 'id_salty.pub'), {encoding: 'utf8'}, function (err, str) {
+    if (err && err.code === 'ENOENT') {
+      err = new Error('No salty-id found. Type `salty init` to create one.')
+      err.code = 'ENOENT'
+      return cb(err)
+    }
+    if (err) return cb(err)
+    try {
+      var pubkey = salty.parsePubkey(str)
+    }
+    catch (e) {
+      return cb(e)
+    }
+    cb(null, pubkey)
   })
 }
 

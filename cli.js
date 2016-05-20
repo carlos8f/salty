@@ -102,24 +102,6 @@ module.exports = {
       cb(null, recipient)
     })
   },
-  translateHeader: function (_header, cb) {
-    var self = this
-    var header = Object.create(null)
-    Object.keys(_header).forEach(function (k) {
-      var val = _header[k]
-      header[k.toLowerCase()] = val
-    })
-    self._getRecipients(function (err, recipients) {
-      if (err) return cb(err)
-      if (header['from-salty-id'] && recipients[header['from-salty-id']]) {
-        header['from-salty-id'] = recipients[header['from-salty-id']].toNiceString()
-      }
-      if (header['to-salty-id'] && recipients[header['to-salty-id']]) {
-        header['to-salty-id'] = recipients[header['to-salty-id']].toNiceString()
-      }
-      cb(null, header)
-    })
-  },
   getPubkey: function (inPath, cb) {
     fs.readFile(inPath, {encoding: 'utf8'}, function (err, pubkey) {
       if (err) return cb(err)
@@ -142,26 +124,43 @@ module.exports = {
       }
     }
 
-    self.findRecipient(email, function (err, recipient) {
+    self._getRecipients(function (err, recipients) {
       if (err) throw err
-      if (!recipient) throw new Error('recipient not found: ' + email)
-      if (sign) {
-        salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
+      if (!email) {
+        salty.loadPubkey(path.join(homeDir, '.salty'), function (err, pubkey) {
           if (err) throw err
-          withWallet(recipient, wallet)
+          email = pubkey.email
+          withEmail(email)
         })
       }
-      else withWallet(recipient)
+      else withEmail(email)
+
+      function withEmail () {
+        var recipient = recipients[email]
+        if (!recipient) {
+          recipient = salty.parsePubkey(email)
+        }
+        if (sign) {
+          salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
+            if (err) throw err
+            withWallet(recipient, wallet, recipients)
+          })
+        }
+        else withWallet(recipient, null, recipients)
+      }
     })
-    function withWallet (recipient, wallet) {
+    function withWallet (recipient, wallet, recipients) {
       var inStat = fs.statSync(inPath)
       var inStream = fs.createReadStream(inPath)
       var encryptor = self._encryptStream(recipient, nonce, inStream, wallet)
       encryptor.once('header', function (header) {
-        self.translateHeader(header, function (err, header) {
-          if (err) throw new Error('error translating headers')
-          self._writeHeader(header)
-        })
+        if (header['from-salty-id'] && recipients[header['from-salty-id']]) {
+          header['from-salty-id'] = recipients[header['from-salty-id']].toNiceString()
+        }
+        if (header['to-salty-id'] && recipients[header['to-salty-id']]) {
+          header['to-salty-id'] = recipients[header['to-salty-id']].toNiceString()
+        }
+        self._printHeader(header)
       })
       var outStream = fs.createWriteStream(outPath, {mode: parseInt('0600', 8)})
       outStream.once('finish', function () {
@@ -300,21 +299,25 @@ module.exports = {
   _decryptStream: function (inStream, totalSize, wallet) {
     var self = this
     var outStream = through()
-    var decryptor, hashStream, eph
+    var decryptor, hashStream, ephSlice, eph
     var chunks = []
     function parseEphemeral (chunk) {
       chunks.push(chunk)
       var buf = Buffer.concat(chunks)
       if (buf.length >= 56) {
-        var ephSlice = buf.slice(0, 56)
+        ephSlice = buf.slice(0, 56)
         chunks = [buf.slice(56)]
         withEphSlice(ephSlice)
       }
     }
     inStream.on('data', parseEphemeral)
+    inStream.once('end', function () {
+      if (!ephSlice) throw new Error('input is not a salty file')
+    })
     function withEphSlice (buf) {
       var tail = []
       var bytesRead = 0
+      var header
       var headerStr = ''
       var tailBuf
       var ended = false
@@ -330,18 +333,28 @@ module.exports = {
       }
       var hash
       hashStream.once('data', function (h) {
+        if (!tailBuf) throw new Error('no header found')
+        console.error('hash DATA', h)
         hash = h
         outStream.emit('hash', hash)
         if (ended) withHeader()
       })
+      outStream.on('data', function (chunk) {
+        if (headerStr) console.error('output data after header', chunk.length, chunk)
+        console.error('outstream DATA', chunk.length, hash)
+        if (!headerStr) {
+          hashStream.write(chunk)
+        }
+      })
 
       function withHeader () {
+        console.trace('with header')
         try {
           assert(ended)
           assert(tailBuf)
           assert(headerStr)
           assert(hash)
-          var header = self._validateHeader(headerStr, hash)
+          header = self._validateHeader(headerStr, hash)
           var me = wallet.pubkey.toBuffer().toString('base64')
           if (header['to-salty-id'] === 'self') {
             if (header['from-salty-id'] !== me) {
@@ -352,13 +365,14 @@ module.exports = {
             return outStream.emit('error', new Error('to-salty-id is not addressed to you'))
           }
           outStream.emit('header', header)
-          outStream.end(tailBuf)
+          outStream.end()
         }
         catch (e) {
           return outStream.emit('error', e)
         }
       }
       function parseHeader (chunk) {
+        console.error('parse header', chunk)
         try {
           bytesRead += chunk.length
           if (bytesRead >= totalSize - 1000) {
@@ -367,21 +381,26 @@ module.exports = {
             var str = tmp.toString('utf8')
             var delimIdx = str.indexOf('\r')
             if (delimIdx !== -1) {
+              console.error('DELIM', delimIdx)
               tailBuf = tmp.slice(0, delimIdx)
-              hashStream.end(tailBuf)
+              if (tailBuf.length) {
+                console.error('tail buf', tailBuf.length)
+                outStream.write(tailBuf)
+              }
               headerStr = tmp.slice(delimIdx + 4).toString()
             }
             else if (headerStr) {
+              console.error('headerStr')
               headerStr += chunk.toString()
             }
             else {
-              hashStream.write(chunk)
-              outStream.write(chunk)
+              console.error('tail zero', chunk.length)
+              outStream.write(tmp)
               tail = []
             }
           }
           else {
-            hashStream.write(chunk)
+            console.error('out write', chunk.length)
             outStream.write(chunk)
           }
         }
@@ -392,11 +411,13 @@ module.exports = {
       decryptor.on('data', parseHeader)
       decryptor.once('end', function () {
         ended = true
-        if (hash) withHeader()
+        if (!tailBuf) throw new Error('no header found')
+        hashStream.end()
       })
       var head = Buffer.concat(chunks)
       decryptor.write(head)
       inStream.pipe(decryptor)
+      inStream.pause()
     }
 
     return outStream
@@ -554,61 +575,38 @@ module.exports = {
       }
     }
     inStream.pause()
-    this.init(function (err, wallet) {
+    inStream.once('end', function () {
+      console.error('inStream END')
+    })
+    inStream.on('data', function (chunk) {
+      console.error('inStream DATA', chunk.length)
+    })
+
+    salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
       if (err) throw err
-      self.headers(inPath, true, function (err, header, header_length) {
+      self._getRecipients(function (err, recipients) {
         if (err) throw err
-        withHeaders(header, header_length)
-      })
-      function withHeaders (header, header_length) {
-        var str = ''
-        var chunks = []
-        var decryptor
-        var blocked
-        if (header['to-salty-id'] && header['to-salty-id'] !== wallet.identity.toString()) {
-          throw new Error('message addressed to some other salty-id')
-        }
-        var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size - header_length, width: 80 })
-        var identity = salty.identity(header['from-salty-id'])
-        var nonce = salty.decode(header['nonce'])
         var outStream = fs.createWriteStream(outPath, {mode: parseInt('0644', 8)})
-        var finalSize = 0
-        outStream.once('finish', function () {
-          if (!hash) hashStream.once('end', finished)
-          else finished()
-        })
-        function finished () {
-          assert(hash)
-          if (hash !== header['hash']) {
-            fs.unlinkSync(outPath)
-            throw new Error('wrote bad hash ' + hash + ' != ' + header['hash'])
+        var decryptor = self._decryptStream(inStream, inStat.size, wallet)
+        decryptor.once('header', function (header) {
+          console.error('HEADER', header)
+          if (header['from-salty-id'] && recipients[header['from-salty-id']]) {
+            header['from-salty-id'] = recipients[header['from-salty-id']].toNiceString()
           }
-          console.log('decrypted to', outPath)
-          self.translateHeader(header, function (err, header) {
-            if (err) throw new Error('error translating headers')
-            if (del) fs.unlinkSync(inPath)
-            console.log(prettyjson.render(header, {
-              noColor: false,
-              keysColor: 'blue',
-              dashColor: 'magenta',
-              stringColor: 'grey'
-            }))
-          })
-        }
-        blocked = new BlockStream(65536, {nopad: true})
-        decryptor = wallet.peerDecryptor(nonce, identity, inStat.size - header_length)
-        decryptor.pipe(outStream)
-        var hashStream = chacha.createHmac(wallet.secret(identity))
-        hashStream.once('data', function (data) {
-          hash = data.toString('base64')
+          if (header['to-salty-id'] && recipients[header['to-salty-id']]) {
+            header['to-salty-id'] = recipients[header['to-salty-id']].toNiceString()
+          }
+          self._printHeader(header)
         })
-        var hash
-        decryptor.pipe(hashStream)
+        decryptor.once('end', function () {
+          console.error('CLI DECRYPTOR END')
+        })
+        var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
         var byteCounter = 0
         var chunkCounter = 0
         var tickCounter = 0
+        /*
         decryptor.on('data', function (chunk) {
-          finalSize += chunk.length
           tickCounter += chunk.length
           byteCounter += chunk.length
           chunkCounter++
@@ -624,25 +622,13 @@ module.exports = {
             }
           }
         })
-        decryptor.once('end', function () {
-          bar.tick(tickCounter)
-          console.log('\nverifying...')
+        */
+        outStream.once('finish', function () {
+          if (del) fs.unlinkSync(inPath)
+          console.log('outStream FINISH decrypted to', outPath)
         })
-        blocked.pipe(decryptor)
-        var bytesRead = 0
-        var finalBlock = []
-        inStream.on('data', function (chunk) {
-          bytesRead += chunk.length
-          if (bytesRead < inStat.size - 1000) return blocked.write(chunk)
-          finalBlock.push(chunk)
-        })
-        inStream.once('end', function () {
-          var buf = Buffer.concat(finalBlock)
-          blocked.write(buf.slice(0, buf.length - header_length))
-          blocked.end()
-        })
-        inStream.resume()
-      }
+        inStream.pipe(decryptor).pipe(outStream)
+      })
     })
   },
   _printHeader: function (header) {
@@ -802,7 +788,7 @@ module.exports = {
           if (err) throw err
           console.log('wrote signature to', outPath)
           self.translateHeader(header, function (err, header) {
-            if (err) throw new Error('error translating headers')
+            if (err) throw err
             console.log(prettyjson.render(header, {
               noColor: false,
               keysColor: 'blue',
