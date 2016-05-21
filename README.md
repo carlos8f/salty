@@ -16,7 +16,6 @@ Salty is an alternative to PGP/GPG using [NaCl](https://en.wikipedia.org/wiki/Na
 - supports anonymous or signed/verified messaging
 - streaming encryption over large (multi-GB) files
 - comparable to `gpg` in performance
-
 - MIT-licensed
 
 ## Install
