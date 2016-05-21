@@ -1,7 +1,7 @@
 salty
 =====
 
-Alternative public key encryption for the masses
+Alternative public key encryption
 
 ## Warning: API and file format are still changing. Major overhaul planned.
 
@@ -11,13 +11,12 @@ Salty is an alternative to PGP/GPG using [NaCl](https://en.wikipedia.org/wiki/Na
 
 ### Features
 
-- rich command-line interface
-- AES-256 protected PEM format for private keys and wallets
+- AES-256 protected PEM format for wallets
 - sharable pubkey string that can fit in a single tweet
-- email-formatted user IDs
+- supports anonymous or signed/verified messaging
 - streaming encryption over large (multi-GB) files
-- detached signature generation
 - comparable to `gpg` in performance
+
 - MIT-licensed
 
 ## Install
@@ -33,30 +32,22 @@ $ npm install -g salty
 
   Commands:
 
-    init                          initialize a wallet at ~/.salty
-    id|pubkey                     output your shareable pubkey string
-    import|i <pubkey|url|file>    import a pubkey
-    ls|l                          list imported keys
-    encrypt|e --to=<email> <infile>   sign and encrypt a file into a ".salty" file
-    decrypt|d <infile>            decrypt and verify a ".salty" file
-    header|h <infile>             view the headers of a ".salty" file
-    sign|s <infile>               create a ".salty-sig" signature file
-    verify|v <infile>             verify a ".salty-sig" signature with the original file
-    save                          save an encrypted backup of your wallet
-    restore                       restore your wallet from a backup
+    init                                    initialize a wallet at ~/.salty
+    id|pubkey                               output your shareable pubkey string
+    import|i <pubkey|url|file>              import a pubkey
+    ls|l                                    list imported keys
+    encrypt|e [options] [infile] [outfile]  encrypt a file
+    decrypt|d [options] <infile> [outfile]  decrypt and verify a file
+    sign|s [options] <infile> [outfile]     create a ".salty-sig" signature file
+    verify|v <insig> [infile]               verify a ".salty-sig" signature with the original file
+    save [indir] [outfile]                  save an encrypted backup of your wallet
+    restore [infile] [outdir]               restore your wallet from a backup
 
   Options:
 
     -h, --help     output usage information
     -V, --version  output the version number
 ```
-
-## TODO
-
-- port sign / verify
-- armor support
-- docs
-- tests
 
 - - -
 
