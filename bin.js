@@ -132,7 +132,7 @@ program
       options.to,
       infile,
       outfile,
-      options.nonce ? salty.decode(options.nonce) : null,
+      options.nonce ? Buffer(options.nonce, 'base64') : null,
       options.force,
       options.delete,
       options.sign
