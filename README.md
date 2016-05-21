@@ -52,9 +52,9 @@ Designed to be sharable, human-readable, and unique.
 Designed to allow anonymous or signed messages, and verify message integrity.
 
 ```
-required meta     payload  
+required meta    ciphertext  
 -------------- + ----------
-ephemeral (64)   ciphertext
+ephemeral (64)    payload
 ```
 
 ### Ephemeral
@@ -65,6 +65,15 @@ Designed to hide the plaintext and header inside an anonymously encrypted payloa
     random         random         plaintext length
 -------------- + ---------- + -------------------------
 encryptPk (32)   nonce (24)   totalSize (8, big endian)
+```
+
+### Payload
+
+Appends a header to the plaintext for verification.
+
+```
+--------- + -------
+plaintext   header
 ```
 
 ### Header
