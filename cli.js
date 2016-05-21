@@ -19,6 +19,7 @@ var base64url = require('base64-url')
   , from = require('from')
   , through = require('through')
   , crypto = require('crypto')
+  , chacha = require('chacha')
 
 var hashes = {}
 
@@ -29,10 +30,12 @@ function recordHash(label) {
 }
 
 process.on('uncaughtException', function (err) {
-  console.error()
+  if (Object.keys(hashes).length) console.error()
   Object.keys(hashes).forEach(function (label) {
     console.error('SHA1', '(' + label + ')', '=', hashes[label])
   })
+  var numListeners = process.listeners('uncaughtException').length
+  if (numListeners === 1) throw err
 })
 
 function sha (label) {
@@ -484,14 +487,18 @@ module.exports = {
 
     return outStream
   },
-  _validateHeader: function (headerStr, hash) {
-    var identity, to_identity
+  _parseHeader: function (headerStr) {
     var header = Object.create(null)
     headerStr.trim().split('\r\n').forEach(function (line) {
       var parts = line.split(':')
       assert.equal(parts.length, 2, 'invalid header line')
       header[parts[0].trim().toLowerCase()] = parts[1].trim()
     })
+    return header
+  },
+  _validateHeader: function (headerStr, hash) {
+    var identity, to_identity
+    var header = this._parseHeader(headerStr)
     if (header['from-salty-id']) {
       try {
         identity = salty.parsePubkey(Buffer(header['from-salty-id'], 'base64'))
@@ -744,36 +751,23 @@ module.exports = {
     var inStream = fs.createReadStream(inPath)
     var nonce = salty.nonce(32)
     inStream.pause()
-    self.init(function (err, wallet) {
+    salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
       if (err) throw err
       var hashStream = chacha.createHmac(nonce)
       var header = Object.create(null)
-      function writeHeader () {
-        var out = ''
-        Object.keys(header).forEach(function (k) {
-          out += k + ': ' + header[k] + '\r\n'
-        })
-        return out
-      }
-      header['From-Salty-Id'] = wallet.identity.toString()
-      header['Nonce'] = nonce.toString('base64')
-      hashStream.once('data', function (buf) {
-        header['Hash'] = buf.toString('base64')
-        var headerStr = writeHeader()
-        header['Signature'] = wallet.sign(Buffer(headerStr)).toString('base64')
-        var finalHeader = writeHeader()
+      header['from-salty-id'] = wallet.pubkey.toBuffer().toString('base64')
+      header['nonce'] = nonce.toString('base64')
+      hashStream.once('data', function (hash) {
+        bar.terminate()
+        header['hash'] = hash.toString('base64')
+        var headerStr = self._writeHeader(header)
+        header['signature'] = wallet.sign(Buffer(headerStr), true).toString('base64')
+        var finalHeader = self._writeHeader(header)
         fs.writeFile(outPath, finalHeader, function (err) {
           if (err) throw err
+          header['from-salty-id'] = wallet.pubkey.toNiceString()
+          self._printHeader(header)
           console.log('wrote signature to', outPath)
-          self.translateHeader(header, function (err, header) {
-            if (err) throw err
-            console.log(prettyjson.render(header, {
-              noColor: false,
-              keysColor: 'blue',
-              dashColor: 'magenta',
-              stringColor: 'grey'
-            }))
-          })
         })
       })
       var bar = new Progress('  hashing [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
@@ -790,35 +784,33 @@ module.exports = {
     var inStat = fs.statSync(inPath)
     var inStream = fs.createReadStream(inPath)
     inStream.pause()
-    self.headers(inSig, true, function (err, header, header_length) {
+    fs.readFile(inSig, {encoding: 'utf8'}, function (err, headerStr) {
       if (err) throw err
-      withHeaders(header, header_length)
-    })
-    function withHeaders (header, header_length) {
-      var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
-      var nonce = salty.decode(header['nonce'])
-      var hashStream = chacha.createHmac(nonce)
-      inStream
-        .on('data', function (chunk) {
-          bar.tick(chunk.length)
-        })
-        .pipe(hashStream)
-        .once('data', function (hash) {
-          if (hash.toString('base64') !== header['hash']) {
-            throw new Error('file hash does not match signature: ' + hash.toString('base64') + ' != ' + header['hash'])
-          }
-          self.translateHeader(header, function (err, header) {
-            if (err) throw new Error('error translating headers')
-            console.log(prettyjson.render(header, {
-              noColor: false,
-              keysColor: 'blue',
-              dashColor: 'magenta',
-              stringColor: 'grey'
-            }))
+      self._getRecipients(function (err, recipients) {
+        if (err) return cb(err)
+        var header = self._parseHeader(headerStr)
+        assert(header['hash'])
+        assert(header['nonce'])
+        assert(header['from-salty-id'])
+        var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
+        var nonce = Buffer(header['nonce'], 'base64')
+        var hashStream = chacha.createHmac(nonce)
+        inStream
+          .on('data', function (chunk) {
+            bar.tick(chunk.length)
           })
-        })
+          .pipe(hashStream)
+          .once('data', function (hash) {
+            bar.terminate()
+            header = self._validateHeader(headerStr, hash)
+            if (recipients[header['from-salty-id']]) {
+              header['from-salty-id'] = recipients[header['from-salty-id']].toNiceString()
+            }
+            self._printHeader(header)
+          })
 
-      inStream.resume()
-    }
+        inStream.resume()
+      })
+    })
   }
 }

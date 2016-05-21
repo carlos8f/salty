@@ -156,9 +156,6 @@ program
     if (options.armor) {
       return cli.decryptMessage(infile)
     }
-    if (!infile.indexOf('.salty') === -1) {
-      infile += '.salty'
-    }
     outfile || (outfile = infile.replace(/\.salty$/, ''))
     cli.decrypt(
       infile,
@@ -169,25 +166,21 @@ program
   })
 
 program
-  .command('sign <infile>')
+  .command('sign <infile> [outfile]')
   .alias('s')
   .description('create a ".salty-sig" signature file')
   .option('-F, --force', 'ignore warnings and do it')
-  .action(function (infile, options) {
-    infile = infile.replace(/\.salty-sig$/, '')
-    var outpem = infile + '.salty-sig'
-    cli.sign(infile, outpem, options.force)
+  .action(function (infile, outfile, options) {
+    outfile || (outfile = infile + '.salty-sig')
+    cli.sign(infile, outfile, options.force)
   })
 
 program
-  .command('verify <infile>')
+  .command('verify <insig> [infile]')
   .alias('v')
   .description('verify a ".salty-sig" signature with the original file')
-  .action(function (insig) {
-    if (insig.indexOf('.salty-sig') === -1) {
-      insig += '.salty-sig'
-    }
-    var infile = insig.replace(/\.salty-sig$/, '')
+  .action(function (insig, infile) {
+    infile || (infile = insig.replace(/\.salty-sig$/, ''))
     cli.verify(insig, infile)
   })
 
