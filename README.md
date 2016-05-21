@@ -53,12 +53,10 @@ $ npm install -g salty
 
 ## TODO
 
-- [use ephemeral keys like reop](http://www.tedunangst.com/flak/post/reop)
-    - public header: pubEph, nonce, encrypted payload
-    - decrypt with secBob + pubEph, nonce
-    - encrypted payload: plain text, private header
-    - private header: from-salty-id (optional), to-salty-id (required if has from) hash (required, key=secBob + pubEph) signature (required if has from)
-- detect backpressure, mem perf
+- port sign / verify
+- armor support
+- docs
+- tests
 
 - - -
 
