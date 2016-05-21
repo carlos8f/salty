@@ -34,7 +34,7 @@ salty.parsePubkey = function (input) {
       assert(match)
       buf = Buffer(base64url.unescape(match[1]), 'base64')
     }
-    assert.equal(buf.length, salty.EPH_LENGTH)
+    assert.equal(buf.length, 64)
   }
   catch (e) {
     throw new Error('invalid pubkey')
