@@ -33,7 +33,6 @@ process.on('uncaughtException', function (err) {
   Object.keys(hashes).forEach(function (label) {
     console.error('SHA1', '(' + label + ')', '=', hashes[label])
   })
-  throw err
 })
 
 function sha (label) {
@@ -219,6 +218,64 @@ module.exports = {
         }
       })
       encryptor.pipe(outStream)
+    }
+  },
+  encryptPEM: function (email, inPath, nonce, del, sign) {
+    // encrypt a stream for pubkey
+    var self = this
+
+    self._getRecipients(function (err, recipients) {
+      if (err) throw err
+      if (!email) {
+        salty.loadPubkey(path.join(homeDir, '.salty'), function (err, pubkey) {
+          if (err) throw err
+          email = pubkey.email
+          withEmail(email)
+        })
+      }
+      else withEmail(email)
+
+      function withEmail () {
+        var recipient = recipients[email]
+        if (!recipient) {
+          recipient = salty.parsePubkey(email)
+        }
+        if (sign) {
+          salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
+            if (err) throw err
+            withWallet(recipient, wallet, recipients)
+          })
+        }
+        else withWallet(recipient, null, recipients)
+      }
+    })
+    function withWallet (recipient, wallet, recipients) {
+      var inStat = fs.statSync(inPath)
+      var inStream = fs.createReadStream(inPath).pipe(new BlockStream(salty.MAX_CHUNK, {nopad: true}))
+      //inStream.pipe(sha('inStream'))
+      var encryptor = self._encryptStream(recipient, nonce, inStream, wallet, inStat.size)
+      var header
+      encryptor.once('header', function (h) {
+        header = h
+        if (header['from-salty-id'] && recipients[header['from-salty-id']]) {
+          header['from-salty-id'] = recipients[header['from-salty-id']].toNiceString()
+        }
+        if (header['to-salty-id'] && recipients[header['to-salty-id']]) {
+          header['to-salty-id'] = recipients[header['to-salty-id']].toNiceString()
+        }
+      })
+      //encryptor.pipe(sha('encryptor'))
+      var chunks = []
+      encryptor.on('data', function (chunk) {
+        chunks.push(chunk)
+      })
+      encryptor.once('end', function () {
+        var buf = Buffer.concat(chunks)
+        var output = pemtools(buf, 'SALTY MESSAGE')
+        process.stdout.write(colors.yellow(output) + '\n')
+        console.error()
+        self._printHeader(header)
+      })
     }
   },
   encryptMessage: function (email, nonce, sign) {
@@ -503,6 +560,13 @@ module.exports = {
       self._getRecipients(function (err, recipients) {
         if (err) throw err
         var outStream = fs.createWriteStream(outPath, {mode: parseInt('0600', 8)})
+        process.on('uncaughtException', function (err) {
+          try {
+            fs.unlinkSync(outPath)
+          }
+          catch (e) {}
+          throw err
+        })
         var decryptor = self._decryptStream(inStream, inStat.size, wallet)
         var header
         decryptor.once('header', function (h) {
@@ -554,7 +618,7 @@ module.exports = {
     }))
   },
   decryptMessage: function (inPath) {
-    // decrypt a stream with wallet
+    // decrypt an armored stream with wallet
     var self = this
     salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
       if (err) throw err
@@ -579,7 +643,7 @@ module.exports = {
             self._printHeader(header)
           })
           outStream.on('data', function (chunk) {
-            console.log(colors.white(chunk.toString()))
+            process.stdout.write(colors.white(chunk.toString()))
           })
         })
       })
