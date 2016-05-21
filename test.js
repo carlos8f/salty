@@ -22,21 +22,6 @@ else console.log('tmpDir', tmpDir);
 
 describe('tests', function () {
   var p = path.join(tmpDir, 'alice.jpg')
-    , mPath = path.join(tmpDir, 'message.txt')
-
-  before(function (done) {
-    request({encoding: null, uri: 'https://gist.githubusercontent.com/carlos8f/a3fd03a48341e36bd2d1/raw/d75632bedb1ec8360bc4c861b55880bd69cbfb72/jabberwocky.txt'})
-      .pipe(fs.createWriteStream(mPath))
-      .on('finish', done);
-  });
-
-  before(function (done) {
-    fs.readFile(mPath, function (err, data) {
-      assert.ifError(err);
-      m = data;
-      done();
-    });
-  });
 
   it('set up wallets', function (done) {
     child_process.exec('tar -xf ' + path.join(__dirname, 'test-wallets.tar.gz'), {cwd: tmpDir}, function (err, stdout, stderr) {
