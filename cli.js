@@ -658,7 +658,7 @@ module.exports = {
       withKeys(keys)
     })
     function withKeys (keys) {
-      console.log(keys).trim()
+      console.log(keys.trim())
     }
   },
   save: function (passphrase, inDir, outPath) {
