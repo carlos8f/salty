@@ -62,7 +62,7 @@ ephemeral (64)   ciphertext
 Designed to hide the plaintext and header inside an anonymously encrypted payload.
 
 ```
-random            random       plaintext length
+    random         random         plaintext length
 -------------- + ---------- + -------------------------
 encryptPk (32)   nonce (24)   totalSize (8, big endian)
 ```
@@ -70,7 +70,7 @@ encryptPk (32)   nonce (24)   totalSize (8, big endian)
 ### Header
 
 ```
-from-salty-id: base64(encryptPk (32) + verifyPk (32))
+[from-salty-id]: base64(encryptPk (32) + verifyPk (32))
 [to-salty-id]: base64(encryptPk (32) + verifyPk (32))
 hash: base64( poly1305( k ) of plaintext )
 [signature]: base64( detached sig of previous headers )
