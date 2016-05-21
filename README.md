@@ -25,7 +25,9 @@ Salty is an alternative to PGP/GPG using [NaCl](https://en.wikipedia.org/wiki/Na
 $ npm install -g salty
 ```
 
-## Salty wallet format
+## Format
+
+### Salty wallet
 
 Designed to allow both decryption and signing.
 
@@ -35,7 +37,7 @@ Designed to allow both decryption and signing.
 decryptSk (32)   signSk (64)
 ```
 
-## Salty pubkey format
+### Salty pubkey
 
 Designed to be sharable, human-readable, and unique.
 
@@ -46,7 +48,7 @@ Designed to be sharable, human-readable, and unique.
 
 ```
 
-## Salty file format
+### Salty file
 
 Designed to allow anonymous or signed messages, and verify message integrity.
 
@@ -56,7 +58,7 @@ required meta     payload
 ephemeral (64)   ciphertext
 ```
 
-## Ephemeral format
+### Ephemeral
 
 Designed to hide the plaintext and header inside an anonymously encrypted payload.
 
@@ -66,7 +68,7 @@ random            random       plaintext length
 encryptPk (32)   nonce (24)   totalSize (8, big endian)
 ```
 
-## Header format
+### Header
 
 ```
 from-salty-id: base64(encryptPk (32) + verifyPk (32))
