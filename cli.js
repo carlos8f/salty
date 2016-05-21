@@ -376,6 +376,7 @@ module.exports = {
     })
 
     setImmediate(function () {
+      //console.error('eph slice', eph.toBuffer())
       outStream.write(eph.toBuffer())
       inStream.pipe(hashStream)
       inStream.resume()
@@ -404,6 +405,7 @@ module.exports = {
       if (!ephSlice) throw new Error('input is not a salty file')
     })
     function withEphSlice (buf) {
+      //console.error('eph slice', buf)
       var header
       var headerStr = ''
       var ended = false

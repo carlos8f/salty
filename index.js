@@ -101,6 +101,7 @@ salty.ephemeral = function (pubkey, nonce, totalSize) {
       ])
     },
     createHmac: function () {
+      //console.error('hash k', k)
       return chacha.createHmac(k)
     }
   }
@@ -114,7 +115,7 @@ salty.parseEphemeral = function (wallet, buf) {
     throw new Error('invalid ephemeral')
   }
   var encryptPk = buf.slice(0, 32)
-  var nonce = buf.slice(32)
+  var nonce = buf.slice(32, 56)
   var totalSize = buf.readDoubleBE(56)
   var k = Buffer(nacl.box.before(a(encryptPk), a(wallet.decryptSk)))
   return {
@@ -125,6 +126,7 @@ salty.parseEphemeral = function (wallet, buf) {
       return salty.decryptor(this.nonce, k, encryptedSize - salty.EPH_LENGTH)
     },
     createHmac: function () {
+      //console.error('hash k', k)
       return chacha.createHmac(k)
     }
   }
@@ -266,6 +268,7 @@ salty.parseWallet = function (buf) {
 }
 
 salty.encryptor = function (nonce, k, isLast) {
+  //console.error('enc nonce', nonce)
   var n = nonce.slice(0, 16)
   var size = 0
   var encryptor = nacl.stream.createEncryptor(a(k), a(n), salty.MAX_CHUNK)
@@ -286,6 +289,7 @@ salty.encryptor = function (nonce, k, isLast) {
 }
 
 salty.decryptor = function (nonce, k, totalSize) {
+  //console.error('dec nonce', nonce)
   var n = nonce.slice(0, 16)
   var size = 0
   var numChunks = 0
