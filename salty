@@ -180,6 +180,9 @@ program
   .alias('v')
   .description('verify a ".salty-sig" signature with the original file')
   .action(function (insig, infile) {
+    if (insig.indexOf('.salty-sig') === -1) {
+      insig += '.salty-sig'
+    }
     infile || (infile = insig.replace(/\.salty-sig$/, ''))
     cli.verify(insig, infile)
   })
