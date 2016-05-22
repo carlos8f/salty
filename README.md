@@ -99,10 +99,10 @@ plaintext   header
 
 ### Header
 
-Always contains a Poly1305 hash to authenticate the plaintext, and optionally contains a signature from the sender.
+Always contains a sha256 HMAC to authenticate the plaintext, and optionally contains a signature from the sender.
 
 ```
-hash: base64( poly1305( k ) of plaintext )
+hash: base64( sha256_hmac( shared_secret ) of plaintext )
 [from-salty-id]: base64(encryptPk (32) + verifyPk (32))
 [to-salty-id]: base64(encryptPk (32) + verifyPk (32))
 [signature]: base64( detached sig of previous headers )

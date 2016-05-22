@@ -19,7 +19,6 @@ var base64url = require('base64-url')
   , from = require('from')
   , through = require('through')
   , crypto = require('crypto')
-  , chacha = require('chacha')
 
 var hashes = {}
 
@@ -755,7 +754,7 @@ module.exports = {
     inStream.pause()
     salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
       if (err) throw err
-      var hashStream = chacha.createHmac(nonce)
+      var hashStream = crypto.createHmac('sha256', nonce)
       var header = Object.create(null)
       header['from-salty-id'] = wallet.pubkey.toBuffer().toString('base64')
       header['nonce'] = nonce.toString('base64')
@@ -796,7 +795,7 @@ module.exports = {
         assert(header['from-salty-id'])
         var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
         var nonce = Buffer(header['nonce'], 'base64')
-        var hashStream = chacha.createHmac(nonce)
+        var hashStream = crypto.createHmac('sha256', nonce)
         inStream
           .on('data', function (chunk) {
             bar.tick(chunk.length)

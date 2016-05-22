@@ -6,7 +6,7 @@ var nacl = require('tweetnacl')
   , prompt = require('cli-prompt')
   , fs = require('fs')
   , path = require('path')
-  , chacha = require('chacha')
+  , crypto = require('crypto')
 
 nacl.stream = require('nacl-stream').stream
 
@@ -105,7 +105,7 @@ salty.ephemeral = function (pubkey, nonce, totalSize) {
     },
     createHmac: function () {
       //console.error('hash k', k)
-      return chacha.createHmac(k)
+      return crypto.createHmac('sha256', k)
     }
   }
 }
@@ -132,7 +132,7 @@ salty.parseEphemeral = function (wallet, buf) {
     },
     createHmac: function () {
       //console.error('hash k', k)
-      return chacha.createHmac(k)
+      return crypto.createHmac('sha256', k)
     }
   }
 }

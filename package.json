@@ -7,8 +7,6 @@
   "dependencies": {
     "base64-url": "^1.2.2",
     "block-stream": "git+https://github.com/carlos8f/block-stream.git",
-    "chacha": "^2.1.0",
-    "chacha-native": "^2.0.1",
     "cli-prompt": "^0.5.1",
     "colors": "^1.1.2",
     "commander": "^2.9.0",
