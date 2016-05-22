@@ -54,17 +54,17 @@ Designed to allow anonymous or signed messages, and verify message integrity.
 ```
 required meta    ciphertext  
 -------------- + ----------
-ephemeral (64)    payload
+ephemeral (80)    payload
 ```
 
 ### Ephemeral
 
-Designed to hide the plaintext and header inside an anonymously encrypted payload.
+Designed to hide the plaintext and header inside an anonymously encrypted/authenticated payload.
 
 ```
-    random         random         plaintext length
--------------- + ---------- + -------------------------
-encryptPk (32)   nonce (24)   totalSize (8, big endian)
+    random         random      plaintext length (encrypted, 24 bytes)
+-------------- + ---------- + ---------------------------------------
+encryptPk (32)   nonce (24)       totalSize (8 bytes, big endian)
 ```
 
 ### Payload
@@ -77,6 +77,8 @@ plaintext   header
 ```
 
 ### Header
+
+Always contains a Poly1305 hash to authenticate the plaintext, and optionally contains a signature from the sender.
 
 ```
 [from-salty-id]: base64(encryptPk (32) + verifyPk (32))
