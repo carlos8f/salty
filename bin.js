@@ -1,4 +1,4 @@
-#!/usr/bin/env node --expose-gc
+#!/usr/bin/env node
 var cli = require('./cli')
   , prompt = require('cli-prompt')
   , addrs = require('email-addresses')

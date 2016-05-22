@@ -200,23 +200,14 @@ module.exports = {
         throw err
       })
       var bar = new Progress('  encrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
-      var byteCounter = 0
       var chunkCounter = 0
       var tickCounter = 0
       encryptor.on('data', function (chunk) {
-        byteCounter += chunk.length
         chunkCounter++
         tickCounter += chunk.length
         if (chunkCounter % 100 === 0) {
           bar.tick(tickCounter)
           tickCounter = 0
-        }
-        if (typeof global.gc !== 'undefined') {
-          // agressively garbage collect
-          if (byteCounter >= 1024 * 1024 * 500) {
-            global.gc()
-            byteCounter = 0
-          }
         }
       })
       encryptor.pipe(outStream)
@@ -587,23 +578,14 @@ module.exports = {
           }
         })
         var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
-        var byteCounter = 0
         var chunkCounter = 0
         var tickCounter = 0
         decryptor.on('data', function (chunk) {
           tickCounter += chunk.length
-          byteCounter += chunk.length
           chunkCounter++
           if (chunkCounter % 100 === 0) {
             bar.tick(tickCounter)
             tickCounter = 0
-          }
-          if (typeof global.gc !== 'undefined') {
-            // agressively garbage collect
-            if (byteCounter >= 1024 * 1024 * 500) {
-              global.gc()
-              byteCounter = 0
-            }
           }
         })
         outStream.once('finish', function () {
