@@ -83,7 +83,7 @@ salty.buildPubkey = function (encryptPk, verifyPk, name, email) {
 salty.ephemeral = function (pubkey, nonce, totalSize) {
   nonce || (nonce = salty.nonce())
   var boxKey = nacl.box.keyPair()
-  var k = Buffer(nacl.box.before(pubkey.encryptPk, boxKey.secretKey))
+  var k = Buffer(nacl.box.before(a(pubkey.encryptPk), a(boxKey.secretKey)))
   boxKey.secretKey = null
   var len = Buffer(8)
   len.writeDoubleBE(totalSize, 0)
