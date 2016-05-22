@@ -173,9 +173,10 @@ module.exports = {
     })
     function withWallet (recipient, wallet, recipients) {
       var inStat = fs.statSync(inPath)
-      var inStream = fs.createReadStream(inPath).pipe(new BlockStream(salty.MAX_CHUNK, {nopad: true}))
+      var inStream = fs.createReadStream(inPath) //.pipe(new BlockStream(salty.MAX_CHUNK, {nopad: true}))
       //inStream.pipe(sha('inStream'))
       var encryptor = self._encryptStream(recipient, nonce, inStream, wallet, inStat.size)
+
       //encryptor.pipe(sha('encryptor'))
       var header
       encryptor.once('header', function (h) {
@@ -254,7 +255,7 @@ module.exports = {
     })
     function withWallet (recipient, wallet, recipients) {
       var inStat = fs.statSync(inPath)
-      var inStream = fs.createReadStream(inPath).pipe(new BlockStream(salty.MAX_CHUNK, {nopad: true}))
+      var inStream = fs.createReadStream(inPath)
       //inStream.pipe(sha('inStream'))
       var encryptor = self._encryptStream(recipient, nonce, inStream, wallet, inStat.size)
       var header
@@ -344,6 +345,7 @@ module.exports = {
       outStream.end()
     })
     //inStream.pipe(sha('inStream'))
+    //inStream = inStream.pipe(new BlockStream(salty.MAX_CHUNK, {randompad: true}))
     inStream.pause()
     inStream.on('data', function (chunk) {
       encryptor.write(chunk)
@@ -352,6 +354,9 @@ module.exports = {
     inStream.once('end', function () {
       ended = true
     })
+    var len = Buffer(8)
+    len.writeDoubleBE(totalSize, 0)
+    encryptor.write(len)
 
     function withHash () {
       assert(header['hash'])
@@ -384,7 +389,7 @@ module.exports = {
 
     return outStream
   },
-  _decryptStream: function (inStream, totalSize, wallet) {
+  _decryptStream: function (inStream, encryptedSize, wallet) {
     var self = this
     var outStream = through()
     outStream.pipe(sha('outStream'))
@@ -399,6 +404,7 @@ module.exports = {
         withEphSlice(ephSlice)
       }
     }
+    //inStream = inStream.pipe(new BlockStream(salty.MAX_CHUNK, {nopad: true}))
     //inStream.pipe(sha('inStream'))
     inStream.on('data', parseEphemeral)
     inStream.once('end', function () {
@@ -407,12 +413,12 @@ module.exports = {
     function withEphSlice (buf) {
       //console.error('eph slice', buf)
       var header
-      var headerStr = ''
+      var headerStr
       var ended = false
       inStream.removeListener('data', parseEphemeral)
       try {
         var eph = salty.parseEphemeral(wallet, buf)
-        var decryptor = eph.createDecryptor(totalSize)
+        var decryptor = eph.createDecryptor(encryptedSize)
         var hashStream = eph.createHmac()
         decryptor.pipe(sha('decryptor'))
       }
@@ -455,20 +461,32 @@ module.exports = {
         }
       }
       var bytesDecrypted = 0
+      var decryptedSize
       function parseHeader (chunk) {
-        if (bytesDecrypted + chunk.length < eph.totalSize) {
+        if (typeof decryptedSize === 'undefined') {
+          decryptedSize = chunk.readDoubleBE(0)
+          chunk = chunk.slice(8)
+          console.error('decryptedSize', decryptedSize)
+        }
+        function getPaddedLength () {
+          return Math.ceil(decryptedSize / salty.MAX_CHUNK) * salty.MAX_CHUNK
+        }
+        if (bytesDecrypted + chunk.length <= decryptedSize) {
+          console.error('reg chunk', bytesDecrypted + chunk.length, decryptedSize)
           outStream.write(chunk)
           bytesDecrypted += chunk.length
         }
-        else if (headerStr) {
-          //console.error('header chunk', chunk.toString())
+        else if (typeof headerStr === 'string' && bytesDecrypted > getPaddedLength()) {
+          console.error('header chunk', chunk.toString())
           headerStr += chunk.toString()
         }
         else {
-          tail = chunk.slice(0, eph.totalSize - bytesDecrypted)
+          tail = chunk.slice(0, decryptedSize - bytesDecrypted)
           if (tail.length) outStream.write(tail)
           bytesDecrypted += tail.length
-          headerStr = chunk.slice(tail.length).toString()
+          headerStr = ''
+          console.error('header', tail.length, chunk.slice(decryptedSize - bytesDecrypted).length)
+          //headerStr = chunk.slice(tail.length).toString()
           //console.error('tail len', tail.length + '/' + chunk.length)
           //console.error('header len', headerStr.length + '/' + chunk.length)
           //console.error('headerStr', headerStr)
@@ -477,8 +495,8 @@ module.exports = {
       decryptor.on('data', parseHeader)
       decryptor.once('end', function () {
         ended = true
+        console.error('decryptor end with', bytesDecrypted, 'decrypted')
         if (!tail) throw new Error('no header found')
-        //console.error('decryptor end with', bytesDecrypted, 'decrypted')
         //console.error('headerStr', headerStr)
         hashStream.end()
       })
@@ -550,7 +568,7 @@ module.exports = {
     // decrypt a stream with wallet
     var self = this
     var inStat = fs.statSync(inPath)
-    var inStream = fs.createReadStream(inPath).pipe(new BlockStream(salty.MAX_CHUNK, {nopad: true}))
+    var inStream = fs.createReadStream(inPath)
     try {
       fs.statSync(outPath)
       if (!force) {
