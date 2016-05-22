@@ -9,6 +9,9 @@ var cli = require('./cli')
   , pemtools = require('pemtools')
   , prettyjson = require('prettyjson')
   , through = require('through')
+  , path = require('path')
+  , homeDir = process.env['USER'] === 'root' ? '/root' : process.env['HOME'] || '/home/' + process.env['USER']
+  , crypto = require('crypto')
 
 var program = require('commander')
   .version(require('./package.json').version)
@@ -18,37 +21,24 @@ program
   .description('initialize a wallet at ~/.salty')
   .action(function (options) {
     prompt('Enter your name (can be blank): ', function (name) {
-      (function promptEmail () {
-        prompt('Enter your email address (can be fake): ', function (email) {
-          if (!email) return promptEmail()
-          var parsed = addrs.parseOneAddress(email)
-          if (!parsed) {
-            console.error('invalid email!')
-            return promptEmail()
+      name = name.trim()
+      ;(function promptEmail () {
+        prompt('Enter your email address (can be fake/blank): ', function (email) {
+          if (email) {
+            var parsed = addrs.parseOneAddress(email)
+            if (!parsed) {
+              console.error('invalid email!')
+              return promptEmail()
+            }
+            email = parsed.address.toLowerCase()
           }
-          if (name) email = '"' + name.replace(/"|'/g, '') + '" <' + parsed.address.toLowerCase() + '>'
-          else if (parsed.name) email = '"' + parsed.name.replace(/"|'/g, '') + '" <' + parsed.address.toLowerCase() + '>'
-          else email = email.toLowerCase()
-          ;(function getPassphrase() {
-            prompt('Enter a passphrase (can be blank): ', true, function (passphrase) {
-              if (passphrase) {
-                prompt('Confirm passphrase: ', true, function (passphrase2) {
-                  if (passphrase2 !== passphrase) {
-                    console.error('Passwords did not match!')
-                    return getPassphrase()
-                  }
-                  withPassphrase()
-                })
-              }
-              else withPassphrase()
-              function withPassphrase () {
-                cli.pubkey(email, passphrase, function (err, pubkey) {
-                  if (err) throw err
-                  console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
-                })
-              }
-            })
-          })()
+          var outPath = path.join(homeDir, '.salty')
+          cli.init(outPath, name, email, function (err, wallet, pubkey) {
+            if (err) throw err
+            if (pubkey) {
+              console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey.toString() + '\n')
+            }
+          })
         })
       })()
     })
@@ -59,7 +49,7 @@ program
   .description('output your shareable pubkey string')
   .alias('pubkey')
   .action(function (options) {
-    cli.getPubkey(function (err, pubkey) {
+    cli.getPubkey(path.join(homeDir, '.salty/id_salty.pub'), function (err, pubkey) {
       if (err) throw err
       console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
     })
@@ -104,7 +94,7 @@ program
       })
     }
     function withPubkey (pubkey) {
-      cli.import(pubkey, function (err, pubkey) {
+      cli.import(path.join(homeDir, '.salty', 'imported_keys'), pubkey, function (err, pubkey) {
         if (err) throw err
         console.log('imported OK')
       })
@@ -116,45 +106,47 @@ program
   .alias('l')
   .description('list imported keys')
   .action(function () {
-    cli.ls()
+    cli.ls(path.join(homeDir, '.salty', 'imported_keys'))
   })
 
 program
-  .command('encrypt [infile]')
+  .command('encrypt [infile] [outfile]')
   .alias('e')
-  .description('sign and encrypt a file into a ".salty" file')
+  .description('encrypt a file')
   .option('-t, --to <email>', 'email address to encrypt for. (must be imported first. default: self)')
   .option('-n, --nonce <nonce>', 'use a specific nonce (base64-encoded)')
   .option('-m, --message', 'compose a message instead of using [infile] (implies -a)')
+  .option('-s, --sign', 'sign the message to reveal/prove our identity')
   .option('-a, --armor', 'output as a PEM to STDOUT')
   .option('-F, --force', 'ignore warnings and do it')
   .option('-D, --delete', 'delete the original file after encryption')
-  .action(function (infile, options) {
+  .action(function (infile, outfile, options) {
     if (options.message) {
-      return cli.encryptMessage(options.to, options.nonce)
+      return cli.encryptMessage(options.to, options.nonce, options.sign)
     }
     if (options.armor) {
-      return cli.encryptPEM(options.to, infile, options.nonce, options.delete)
+      return cli.encryptPEM(options.to, infile, options.nonce, options.delete, options.sign)
     }
-    var outfile = infile + '.salty'
+    outfile || (outfile = crypto.randomBytes(4).toString('hex') + '.salty')
     cli.encrypt(
       options.to,
       infile,
       outfile,
-      options.nonce ? salty.decode(options.nonce) : null,
+      options.nonce ? Buffer(options.nonce, 'base64') : null,
       options.force,
-      options.delete
+      options.delete,
+      options.sign
     )
   })
 
 program
-  .command('decrypt <infile>')
+  .command('decrypt <infile> [outfile]')
   .alias('d')
-  .description('decrypt and verify a ".salty" file')
+  .description('decrypt and verify a file')
   .option('-a, --armor', 'expect PEM format, output to STDOUT')
   .option('-F, --force', 'ignore warnings and do it')
   .option('-D, --delete', 'delete the salty file after verification')
-  .action(function (infile, options) {
+  .action(function (infile, outfile, options) {
     if (options.armor && infile.indexOf('.pem') === -1) {
       infile += '.pem'
     }
@@ -164,10 +156,7 @@ program
     if (options.armor) {
       return cli.decryptMessage(infile)
     }
-    if (!infile.indexOf('.salty') === -1) {
-      infile += '.salty'
-    }
-    var outfile = infile.replace(/\.salty$/, '')
+    outfile || (outfile = infile.replace(/\.salty$/, ''))
     cli.decrypt(
       infile,
       outfile,
@@ -177,54 +166,21 @@ program
   })
 
 program
-  .command('header <infile>')
-  .alias('h')
-  .description('view the headers of a ".salty" file')
-  .option('-a, --armor', 'expect a PEM')
-  .action(function (infile, options) {
-    if (options.armor && infile.indexOf('.pem') === -1) {
-      infile += '.pem'
-    }
-    else if (infile.match(/\.pem$/)) {
-      options.armor = true
-    }
-    else if (!options.armor && infile.indexOf('.salty') === -1) {
-      infile += '.salty'
-    }
-    cli[options.armor ? 'headersFromPEM' : 'headers'](infile, function (err, header) {
-      if (err) throw err
-      withHeader(header)
-    })
-    function withHeader (header) {
-      console.log(prettyjson.render(header, {
-        noColor: false,
-        keysColor: 'blue',
-        dashColor: 'magenta',
-        stringColor: 'grey'
-      }))
-    }
-  })
-
-program
-  .command('sign <infile>')
+  .command('sign <infile> [outfile]')
   .alias('s')
   .description('create a ".salty-sig" signature file')
   .option('-F, --force', 'ignore warnings and do it')
-  .action(function (infile, options) {
-    infile = infile.replace(/\.salty-sig$/, '')
-    var outpem = infile + '.salty-sig'
-    cli.sign(infile, outpem, options.force)
+  .action(function (infile, outfile, options) {
+    outfile || (outfile = infile + '.salty-sig')
+    cli.sign(infile, outfile, options.force)
   })
 
 program
-  .command('verify <infile>')
+  .command('verify <insig> [infile]')
   .alias('v')
   .description('verify a ".salty-sig" signature with the original file')
-  .action(function (insig) {
-    if (insig.indexOf('.salty-sig') === -1) {
-      insig += '.salty-sig'
-    }
-    var infile = insig.replace(/\.salty-sig$/, '')
+  .action(function (insig, infile) {
+    infile || (infile = insig.replace(/\.salty-sig$/, ''))
     cli.verify(insig, infile)
   })
 
@@ -255,7 +211,7 @@ program
 program
   .command('*')
   .action(function (infile) {
-    program.outputHelp();
+    program.outputHelp()
   })
 
 program.parse(process.argv)
