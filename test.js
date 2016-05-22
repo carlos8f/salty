@@ -5,12 +5,9 @@ path = require('path');
 crypto = require('crypto');
 rimraf = require('rimraf');
 request = require('request');
-mkdirp = require('mkdirp');
-base64url = require('base64-url');
 child_process = require('child_process');
-BlockStream = require('block-stream');
 
-tmpDir = path.join(require('os').tmpDir(), require('idgen')());
+tmpDir = path.join(require('os').tmpDir(), Math.random().toString(36).slice(2));
 
 fs.mkdirSync(tmpDir);
 if (!process.env.DEBUG) {
