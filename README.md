@@ -26,6 +26,8 @@ $ npm install -g salty
 
 ## Format
 
+Byte counts are in `()` parenthesis.
+
 ### Salty wallet
 
 Designed to allow both decryption and signing.
@@ -34,6 +36,19 @@ Designed to allow both decryption and signing.
   decryption      signing
 -------------- + -----------
 decryptSk (32)   signSk (64)
+```
+
+Example (wallets are stored as encrypted PEM on disk)
+
+```
+-----BEGIN SALTY WALLET-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: AES-256-CBC,0CFAE3D8E9C0126399949B42F1F0660A
+
+iHJYVUldHlQhBRAIys+Zf/kSymKFoc1KT5dH6izm1nXcUI97eH93i4+Lx5dzj+Sd
+QN3J5NwusWjGyMk4O/FiBVygxF+z6tOmu2A/mGEXZlgw91GmRwM+YlEd5vabxg5I
+mlgYjrqP4ffJ8/I09e2RGg==
+-----END SALTY WALLET-----
 ```
 
 ### Salty pubkey
@@ -45,6 +60,12 @@ Designed to be sharable, human-readable, and unique.
 ---------- [space] ----------------------------------------- [space] --------  ---------
 "salty-id"         base64url(encryptPk (32) + verifyPk (32))         "{name}"  <{email}>
 
+```
+
+Example:
+
+```
+salty-id oU3lbcpdHo81Eo8SifwoHg5CEEZ5q-Rb0_zMWpJU-GWlr9lIjILqv5RneVsMo3azdEJ8UYTmz86dz0Cx5ciIsw "Carlos Rodriguez" <carlos@s8f.org>
 ```
 
 ### Salty file
@@ -85,6 +106,15 @@ Always contains a Poly1305 hash to authenticate the plaintext, and optionally co
 [to-salty-id]: base64(encryptPk (32) + verifyPk (32))
 hash: base64( poly1305( k ) of plaintext )
 [signature]: base64( detached sig of previous headers )
+```
+
+Example:
+
+```
+hash:          F9vlTwKoK42H203G0l72qA==
+from-salty-id: oU3lbcpdHo81Eo8SifwoHg5CEEZ5q-Rb0_zMWpJU-GWlr9lIjILqv5RneVsMo3azdEJ8UYTmz86dz0Cx5ciIsw
+to-salty-id:   "Bob"
+signature:     vtQQktMrFEszVSeVMgqN22EPOCMjZQZvA2TZkujcE7BtXAv9Lf7k1P4HE1D/c/XoIPvoQ8LiHJEgumWlgGuNDg==
 ```
 
 ## Usage
