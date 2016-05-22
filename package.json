@@ -3,7 +3,7 @@
   "version": "2.0.1",
   "description": "Alternative public key encryption",
   "main": "index.js",
-  "bin": "bin.js",
+  "bin": "./salty",
   "dependencies": {
     "base64-url": "^1.2.2",
     "block-stream": "git+https://github.com/carlos8f/block-stream.git",
