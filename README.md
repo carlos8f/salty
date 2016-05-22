@@ -3,8 +3,6 @@ salty
 
 Alternative public key encryption
 
-## Warning: API and file format are still changing. Major overhaul planned.
-
 ## Description
 
 Salty is an alternative to PGP/GPG using [NaCl](https://en.wikipedia.org/wiki/NaCl_(software)) instead of RSA/DSA.
