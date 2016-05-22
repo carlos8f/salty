@@ -18,10 +18,20 @@ Salty is an alternative to PGP/GPG using [NaCl](https://en.wikipedia.org/wiki/Na
 - comparable to `gpg` in performance
 - MIT-licensed
 
-## Install
+## Install (Mac OSX)
 
 ```
-$ npm install -g salty
+$ brew tap carlos8f/tap
+$ brew install salty
+```
+
+Other UNIX-based platforms:
+
+Install first: [nodejs](https://nodejs.org/)
+
+```
+$ git clone https://github.com/carlos8f/salty.git
+$ sudo ln -s `pwd`/salty/salty /usr/local/bin/salty
 ```
 
 ## Format
