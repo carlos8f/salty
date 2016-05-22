@@ -25,7 +25,7 @@ $ brew tap carlos8f/tap
 $ brew install salty
 ```
 
-Other UNIX-based platforms:
+## Other UNIX-based platforms:
 
 Install first: [nodejs](https://nodejs.org/)
 
