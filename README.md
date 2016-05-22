@@ -9,10 +9,11 @@ Salty is an alternative to PGP/GPG using [NaCl](https://en.wikipedia.org/wiki/Na
 
 ### Features
 
-- AES-256 protected PEM format for wallets
+- supports anonymous-sender or signed/verified messaging
 - sharable pubkey string that can fit in a single tweet
-- supports anonymous or signed/verified messaging
-- streaming encryption over large (multi-GB) files
+- fast, streaming encryption over large (multi-GB) files
+- public signing/verifying with detached signatures
+- AES-256 protected PEM format for wallets
 - comparable to `gpg` in performance
 - MIT-licensed
 
