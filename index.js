@@ -121,7 +121,7 @@ salty.parseEphemeral = function (wallet, buf) {
   var nonce = buf.slice(32, 56)
   var encryptedLen = buf.slice(56)
   var k = Buffer(nacl.box.before(a(encryptPk), a(wallet.decryptSk)))
-  var decryptedLen = Buffer(nacl.box.open.after(a(encryptedLen), nonce, k))
+  var decryptedLen = Buffer(nacl.box.open.after(a(encryptedLen), a(nonce), a(k)))
   var totalSize = decryptedLen.readDoubleBE(0)
   return {
     encryptPk: encryptPk,
