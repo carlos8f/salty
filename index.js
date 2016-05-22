@@ -20,7 +20,7 @@ var salty = module.exports = {
     return Buffer(nacl.randomBytes(len || nacl.box.nonceLength))
   },
   MAX_CHUNK: 65535 * 10,
-  EPH_LENGTH: 64
+  EPH_LENGTH: 80
 }
 
 salty.parsePubkey = function (input) {
@@ -85,6 +85,9 @@ salty.ephemeral = function (pubkey, nonce, totalSize) {
   var boxKey = nacl.box.keyPair()
   var k = Buffer(nacl.box.before(pubkey.encryptPk, boxKey.secretKey))
   boxKey.secretKey = null
+  var len = Buffer(8)
+  len.writeDoubleBE(totalSize, 0)
+  var encryptedLen = Buffer(nacl.box.after(a(len), a(nonce), a(k)))
   return {
     encryptPk: Buffer(boxKey.publicKey),
     nonce: nonce,
@@ -92,13 +95,13 @@ salty.ephemeral = function (pubkey, nonce, totalSize) {
       return salty.encryptor(this.nonce, k, isLast)
     },
     toBuffer: function () {
-      var len = Buffer(8)
-      len.writeDoubleBE(totalSize, 0)
-      return Buffer.concat([
+      var buf = Buffer.concat([
         this.encryptPk,
         this.nonce,
-        len
+        encryptedLen
       ])
+      assert.equal(buf.length, salty.EPH_LENGTH)
+      return buf
     },
     createHmac: function () {
       //console.error('hash k', k)
@@ -116,8 +119,10 @@ salty.parseEphemeral = function (wallet, buf) {
   }
   var encryptPk = buf.slice(0, 32)
   var nonce = buf.slice(32, 56)
-  var totalSize = buf.readDoubleBE(56)
+  var encryptedLen = buf.slice(56)
   var k = Buffer(nacl.box.before(a(encryptPk), a(wallet.decryptSk)))
+  var decryptedLen = Buffer(nacl.box.open.after(a(encryptedLen), nonce, k))
+  var totalSize = decryptedLen.readDoubleBE(0)
   return {
     encryptPk: encryptPk,
     nonce: nonce,
