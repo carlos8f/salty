@@ -19,8 +19,8 @@ var salty = module.exports = {
   nonce: function (len) {
     return Buffer(nacl.randomBytes(len || nacl.box.nonceLength))
   },
-  MAX_CHUNK: 655350,
-  EPH_LENGTH: 56
+  MAX_CHUNK: 65535 * 10,
+  EPH_LENGTH: 64
 }
 
 salty.parsePubkey = function (input) {
@@ -92,9 +92,12 @@ salty.ephemeral = function (pubkey, nonce, totalSize) {
       return salty.encryptor(this.nonce, k, isLast)
     },
     toBuffer: function () {
+      var len = Buffer(8)
+      len.writeDoubleBE(totalSize, 0)
       return Buffer.concat([
         this.encryptPk,
-        this.nonce
+        this.nonce,
+        len
       ])
     },
     createHmac: function () {
@@ -112,11 +115,13 @@ salty.parseEphemeral = function (wallet, buf) {
     throw new Error('invalid ephemeral')
   }
   var encryptPk = buf.slice(0, 32)
-  var nonce = buf.slice(32)
+  var nonce = buf.slice(32, 56)
+  var totalSize = buf.readDoubleBE(56)
   var k = Buffer(nacl.box.before(a(encryptPk), a(wallet.decryptSk)))
   return {
     encryptPk: encryptPk,
     nonce: nonce,
+    totalSize: totalSize,
     createDecryptor: function (encryptedSize) {
       return salty.decryptor(this.nonce, k, encryptedSize - salty.EPH_LENGTH)
     },
@@ -265,17 +270,21 @@ salty.parseWallet = function (buf) {
 salty.encryptor = function (nonce, k, isLast) {
   //console.error('enc nonce', nonce)
   var n = nonce.slice(0, 16)
-  var encryptedSize = 0
+  var size = 0
   var encryptor = nacl.stream.createEncryptor(a(k), a(n), salty.MAX_CHUNK)
   var numChunks = 0
   return through(function write (data) {
     var encryptedChunk = encryptor.encryptChunk(a(data), isLast())
     //console.error('chunk', ++numChunks, encryptedChunk.length)
     this.queue(Buffer(encryptedChunk))
+    size += encryptedChunk.length
     numChunks++
     if (isLast()) {
       encryptor.clean()
     }
+  }, function end () {
+    //console.error('total encrypted len', size)
+    this.queue(null)
   })
 }
 
@@ -301,10 +310,8 @@ salty.decryptor = function (nonce, k, totalSize) {
       buf = buf.slice(len + 20)
       var decryptedChunk = decryptor.decryptChunk(a(chunk), !buf.length)
       //console.error('decrypt chunk', ++numChunks, decryptedChunk.length)
-      if (decryptedChunk) {
-        decryptedSize += decryptedChunk.length
-        this.queue(Buffer(decryptedChunk))
-      }
+      decryptedSize += decryptedChunk.length
+      this.queue(Buffer(decryptedChunk))
     }
     if (isLast) {
       decryptor.clean()
