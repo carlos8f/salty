@@ -100,9 +100,9 @@ plaintext   header
 Always contains a Poly1305 hash to authenticate the plaintext, and optionally contains a signature from the sender.
 
 ```
+hash: base64( poly1305( k ) of plaintext )
 [from-salty-id]: base64(encryptPk (32) + verifyPk (32))
 [to-salty-id]: base64(encryptPk (32) + verifyPk (32))
-hash: base64( poly1305( k ) of plaintext )
 [signature]: base64( detached sig of previous headers )
 ```
 
@@ -111,7 +111,7 @@ Example:
 ```
 hash:          F9vlTwKoK42H203G0l72qA==
 from-salty-id: oU3lbcpdHo81Eo8SifwoHg5CEEZ5q-Rb0_zMWpJU-GWlr9lIjILqv5RneVsMo3azdEJ8UYTmz86dz0Cx5ciIsw
-to-salty-id:   "Bob"
+to-salty-id:   oU3lbcpdHo81Eo8SifwoHg5CEEZ5q-Rb0_zMWpJU-GWlr9lIjILqv5RneVsMo3azdEJ8UYTmz86dz0Cx5ciIsw
 signature:     vtQQktMrFEszVSeVMgqN22EPOCMjZQZvA2TZkujcE7BtXAv9Lf7k1P4HE1D/c/XoIPvoQ8LiHJEgumWlgGuNDg==
 ```
 
