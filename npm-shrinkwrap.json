@@ -1,6 +1,6 @@
 {
   "name": "salty",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "dependencies": {
     "asn1": {
       "version": "0.1.11",
