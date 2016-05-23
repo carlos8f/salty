@@ -7,6 +7,8 @@ Alternative public key encryption
 
 Salty is an alternative to PGP/GPG using [NaCl](https://en.wikipedia.org/wiki/NaCl_(software)) instead of RSA/DSA.
 
+Commits and tags in this repo are signed with GPG key [5FBB 2F98 3862 1AFF](https://keybase.io/carlos8f).
+
 ### Features
 
 - supports anonymous-sender or signed/verified messaging
