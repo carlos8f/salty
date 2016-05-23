@@ -50,7 +50,7 @@ describe('tests', function () {
       env[k] = process.env[k]
     })
     env['HOME'] = path.join(tmpDir, 'alice')
-    var proc = child_process.spawn(path.join(__dirname, 'bin.js'), ['encrypt', '--sign', '--to=Bob', p, p + '.salty'], {env: env})
+    var proc = child_process.spawn(path.join(__dirname, 'salty'), ['encrypt', '--sign', '--to=Bob', p, p + '.salty'], {env: env})
     proc.stderr.pipe(process.stderr)
     proc.stdout.pipe(process.stdout)
     proc.once('close', function (code) {
@@ -65,7 +65,7 @@ describe('tests', function () {
       env[k] = process.env[k]
     })
     env['HOME'] = path.join(tmpDir, 'bob')
-    var proc = child_process.spawn(path.join(__dirname, 'bin.js'), ['decrypt', p + '.salty'], {env: env})
+    var proc = child_process.spawn(path.join(__dirname, 'salty'), ['decrypt', p + '.salty'], {env: env})
     proc.stderr.pipe(process.stderr)
     proc.stdout.pipe(process.stdout)
     proc.once('close', function (code) {
