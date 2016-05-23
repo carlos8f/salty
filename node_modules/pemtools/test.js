@@ -7,7 +7,7 @@ rimraf = require('rimraf');
 request = require('request');
 idgen = require('idgen');
 child_process = require('child_process');
-bignum = require('bignum');
+BN = require('bn.js');
  
 tmpDir = path.join(require('os').tmpDir(), idgen());
  
@@ -102,7 +102,7 @@ describe('ssh key', function () {
             }
             header = line.replace(/\:.*/, '');
             if (header === 'publicExponent') {
-              var num = bignum(line.split(' ')[1]);
+              var num = new BN(line.split(' ')[1]);
               var buf = num.toBuffer();
               buf = pemtools.signBuffer(buf);
               parts.push(buf.toString('hex'));

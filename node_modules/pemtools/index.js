@@ -148,7 +148,7 @@ PEM.prototype.decode = function (str, passphrase) {
     // modern key derivation (PKCS#8)
     var algorithm = dekInfo[1].toLowerCase();
     var salt = Buffer(dekInfo[2], 'hex');
-    var key = crypto.pbkdf2Sync(passphrase, salt, 2048, sshKeyDecrypt.keyBytes[algorithm.toUpperCase()]);
+    var key = crypto.pbkdf2Sync(passphrase, salt, 2048, sshKeyDecrypt.keyBytes[algorithm.toUpperCase()], 'sha1');
     var decipher = crypto.createDecipheriv(algorithm, key, salt);
   }
   lines.pop();
@@ -179,7 +179,7 @@ PEM.prototype.encode = function (buf, tag, passphrase) {
       var key = sshKeyDecrypt.EVP_BytesToKey(algorithm.toUpperCase(), passphrase, salt);
     else
       // see https://www.openssl.org/docs/crypto/pem.html#NOTES
-      var key = crypto.pbkdf2Sync(passphrase, salt, 2048, sshKeyDecrypt.keyBytes[algorithm.toUpperCase()]);
+      var key = crypto.pbkdf2Sync(passphrase, salt, 2048, sshKeyDecrypt.keyBytes[algorithm.toUpperCase()], 'sha1');
     var cipher = crypto.createCipheriv(algorithm, key, salt);
     var buf1 = cipher.update(this.buf);
     this.buf = Buffer.concat([buf1, cipher.final()]);
