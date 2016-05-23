@@ -95,7 +95,7 @@ ephemeral (80)    payload
 Designed to hide the plaintext and header inside an anonymously encrypted/authenticated payload.
 
 ```
-    random         random      plaintext length (encrypted, 24 bytes)
+    random         random      payload length (encrypted, 24 bytes)
 -------------- + ---------- + ---------------------------------------
 encryptPk (32)   nonce (24)       totalSize (8 bytes, big endian)
 ```
