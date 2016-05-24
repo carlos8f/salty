@@ -23,7 +23,6 @@
   },
   "devDependencies": {
     "mocha": "^2.4.5",
-    "request": "^2.72.0",
     "rimraf": "^2.5.2"
   },
   "scripts": {

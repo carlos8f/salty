@@ -4,8 +4,8 @@ fs = require('fs');
 path = require('path');
 crypto = require('crypto');
 rimraf = require('rimraf');
-request = require('request');
 child_process = require('child_process');
+https = require('https');
 
 tmpDir = path.join(require('os').tmpDir(), Math.random().toString(36).slice(2));
 
@@ -29,9 +29,13 @@ describe('tests', function () {
 
   var streamSize = 0
   it('stream fixture', function (done) {
-    request({encoding: null, uri: 'https://raw.githubusercontent.com/carlos8f/node-buffet/master/test/files/folder/Alice-white-rabbit.jpg'})
-      .pipe(fs.createWriteStream(p))
+    https.request({
+      hostname: 'raw.githubusercontent.com',
+      path: '/carlos8f/node-buffet/master/test/files/folder/Alice-white-rabbit.jpg'
+    }, function (res) {
+      res.pipe(fs.createWriteStream(p))
       .on('finish', done);
+    }).end()
   });
   it('read stream fixture', function (done) {
     fs.createReadStream(p)
