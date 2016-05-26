@@ -87,31 +87,31 @@ Designed to allow anonymous or signed messages, and verify message integrity.
 ```
 required meta    ciphertext  
 -------------- + ----------
-ephemeral (80)    payload
+ephemeral (80)    plaintext
 ```
 
 ### Ephemeral
 
-Designed to hide the plaintext and header inside an anonymously encrypted/authenticated payload.
+Designed to hide the message and header inside an anonymously encrypted/authenticated payload.
 
 ```
-    random         random      payload length (encrypted, 24 bytes)
+    random         random      message length (encrypted, 24 bytes)
 -------------- + ---------- + ---------------------------------------
 encryptPk (32)   nonce (24)       totalSize (8 bytes, big endian)
 ```
 
-### Payload
+### Plaintext
 
-Appends a header to the plaintext for verification, and pads the message with random bytes.
+Appends a header to the message for verification, and pads the plaintext with random bytes.
 
 ```
 --------- + ------- + -------------------
-plaintext   header     random bytes (?)
+ message     header     random bytes (?)
 ```
 
 ### Header
 
-Always contains a sha256 HMAC to authenticate the plaintext, and optionally contains a signature from the sender.
+Always contains a sha256 HMAC to authenticate the message, and optionally contains a signature from the sender.
 
 ```
 hash: base64( sha256_hmac( shared_secret ) of plaintext )
