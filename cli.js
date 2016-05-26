@@ -300,7 +300,7 @@ module.exports = {
         })
       })()
       function withMessage (m) {
-        var outStream = self._encryptStream(recipient, nonce, from([m]), wallet)
+        var outStream = self._encryptStream(recipient, nonce, from([m]), wallet, true)
         var chunks = []
         outStream.on('data', function (chunk) {
           chunks.push(chunk)
@@ -313,7 +313,7 @@ module.exports = {
       }
     }
   },
-  _encryptStream: function (recipient, nonce, inStream, wallet, totalSize) {
+  _encryptStream: function (recipient, nonce, inStream, wallet, totalSize, nopad) {
     var self = this
     nonce || (nonce = salty.nonce())
     var eph = salty.ephemeral(recipient, nonce, totalSize)
@@ -354,7 +354,12 @@ module.exports = {
         header['signature'] = wallet.sign(Buffer(self._writeHeader(header)), true).toString('base64')
       }
       var headerStr = self._writeHeader(header)
-      var headerBuf = Buffer('\r\n\r\n' + headerStr)
+      var headerBuf = Buffer('\r\n\r\n' + headerStr + '\n')
+      if (!nopad) {
+        var padLength = Math.ceil(Math.random() * (salty.MAX_CHUNK - headerStr.length))
+        var bytes = crypto.randomBytes(padLength)
+        headerBuf = Buffer.concat([headerBuf, bytes])
+      }
       outStream.emit('header', header)
       bytesEncrypted += headerBuf.length
       encryptor.end(headerBuf)
@@ -481,9 +486,11 @@ module.exports = {
   },
   _parseHeader: function (headerStr) {
     var header = Object.create(null)
+    var stop = false
     headerStr.trim().split('\r\n').forEach(function (line) {
+      if (stop || !line) return
       var parts = line.split(':')
-      assert.equal(parts.length, 2, 'invalid header line')
+      if (parts.length !== 2) return stop = true
       header[parts[0].trim().toLowerCase()] = parts[1].trim()
     })
     return header

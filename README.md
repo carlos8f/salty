@@ -102,11 +102,11 @@ encryptPk (32)   nonce (24)       totalSize (8 bytes, big endian)
 
 ### Payload
 
-Appends a header to the plaintext for verification.
+Appends a header to the plaintext for verification, and pads the message with random bytes.
 
 ```
---------- + -------
-plaintext   header
+--------- + ------- + -------------------
+plaintext   header     random bytes (?)
 ```
 
 ### Header
