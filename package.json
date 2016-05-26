@@ -46,5 +46,22 @@
   "homepage": "https://github.com/carlos8f/salty",
   "bugs": {
     "url": "https://github.com/carlos8f/salty/issues"
-  }
+  },
+  "bundledDependencies": [
+    "base64-url",
+    "block-stream",
+    "cli-prompt",
+    "colors",
+    "commander",
+    "email-addresses",
+    "from",
+    "fstream",
+    "nacl-stream",
+    "pemtools",
+    "prettyjson",
+    "progress",
+    "tar",
+    "through",
+    "tweetnacl"
+  ]
 }
