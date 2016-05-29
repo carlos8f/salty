@@ -357,7 +357,10 @@ module.exports = {
       var headerBuf = Buffer('\r\n\r\n' + headerStr + '\n')
       if (!nopad) {
         var padLength = Math.ceil(Math.random() * (salty.MAX_CHUNK - headerStr.length))
-        var bytes = crypto.randomBytes(padLength)
+        var bytes = Buffer(padLength)
+        for (var i = 0; i < padLength; i++) {
+          bytes[i] = 0
+        }
         headerBuf = Buffer.concat([headerBuf, bytes])
       }
       outStream.emit('header', header)
