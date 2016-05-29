@@ -13,6 +13,10 @@ Commits and tags in this repo are signed with GPG key [5FBB 2F98 3862 1AFF](http
 
 - supports anonymous-sender or signed/verified messaging
 - sharable pubkey string that can fit in a single tweet
+- does NOT use your ssh keys, pgp keys, or anything RSA.
+- encrypt public key is always ephemeral, so no leaked metadata
+- sender identity is deniable, unless they explicitly commit to sign the message
+- file length is hidden with padding
 - fast, streaming encryption over large (multi-GB) files
 - public signing/verifying with detached signatures
 - binary or "ascii armor" PEM output
@@ -102,11 +106,11 @@ encryptPk (32)   nonce (24)       totalSize (8 bytes, big endian)
 
 ### Plaintext
 
-Appends a header to the message for verification, and pads the plaintext with random bytes.
+Appends a header to the message for verification, and pads the plaintext with null bytes.
 
 ```
 --------- + ------- + -------------------
- message     header     random bytes (?)
+ message     header      null bytes (?)
 ```
 
 ### Header
@@ -114,7 +118,7 @@ Appends a header to the message for verification, and pads the plaintext with ra
 Always contains a sha256 HMAC to authenticate the message, and optionally contains a signature from the sender.
 
 ```
-hash: base64( sha256_hmac( shared_secret ) of plaintext )
+hash: base64( sha256_hmac( shared_secret ) of message )
 [from-salty-id]: base64(encryptPk (32) + verifyPk (32))
 [to-salty-id]: base64(encryptPk (32) + verifyPk (32))
 [signature]: base64( detached sig of previous headers )
