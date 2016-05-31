@@ -1,0 +1,4 @@
+-R spec
+-u bdd
+--compilers coffee:coffee-script
+--require chai

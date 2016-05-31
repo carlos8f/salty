@@ -10,7 +10,7 @@ var base64url = require('base64-url')
   , prompt = require('cli-prompt')
   , tar = require('tar')
   , fstream = require('fstream')
-  , pemtools = require('pemtools')
+  , pempal = require('pempal')
   , zlib = require('zlib')
   , child_process = require('child_process')
   , Progress = require('progress')
@@ -264,7 +264,7 @@ module.exports = {
       })
       encryptor.once('end', function () {
         var buf = Buffer.concat(chunks)
-        var output = pemtools(buf, 'SALTY MESSAGE')
+        var output = pempal.encode(buf, {tag: 'SALTY MESSAGE'})
         process.stdout.write(colors.yellow(output) + '\n')
         console.error()
         self._printHeader(header)
@@ -307,7 +307,7 @@ module.exports = {
         })
         outStream.once('end', function () {
           var buf = Buffer.concat(chunks)
-          var output = pemtools(buf, 'SALTY MESSAGE')
+          var output = pempal.encode(buf, {tag: 'SALTY MESSAGE'})
           console.log('\n\n' + colors.yellow(output) + '\n')
         })
       }
@@ -629,7 +629,7 @@ module.exports = {
         var inStat = fs.statSync(inPath)
         fs.readFile(inPath, {encoding: 'utf8'}, function (err, raw) {
           if (err) throw err
-          var pem = pemtools(raw, 'SALTY MESSAGE')
+          var pem = pempal.decode(raw, {tag: 'SALTY MESSAGE'})
           var buf = pem.toBuffer()
           var inStream = from([buf])
           var outStream = self._decryptStream(inStream, inStat.size, wallet)
@@ -680,7 +680,7 @@ module.exports = {
       })
       gzipStream.on('end', function () {
         var zlibBuffer = Buffer.concat(gzipChunks)
-        var pem = pemtools(zlibBuffer, 'SALTY WALLET', passphrase).toString()
+        var pem = pempal.encode(zlibBuffer, {tag: 'SALTY WALLET', passphrase: passphrase})
         fs.writeFile(dest, pem + '\n', {mode: parseInt('0644', 8)}, function (err) {
           if (err) throw err
           console.log('saved to', dest)
@@ -697,13 +697,13 @@ module.exports = {
       var passphrase = null
       if (pem.indexOf('ENCRYPTED') !== -1) {
         prompt.password('Enter your passphrase: ', function (passphrase) {
-          var parsedPem = pemtools(pem, 'SALTY WALLET', passphrase)
-          withParsed(parsedPem)
+          var parsedPem = pempal.decode(pem, {tag: 'SALTY WALLET', passphrase: passphrase})
+          withParsed(parsedPem.body)
         })
       }
       else {
-        var parsedPem = pemtools(pem, 'SALTY WALLET')
-        withParsed(parsedPem)
+        var parsedPem = pempal.decode(pem, {tag: 'SALTY WALLET'})
+        withParsed(parsedPem.body)
       }
       var dest = outDir || path.join(homeDir, '.salty')
       function withParsed (pem) {

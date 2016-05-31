@@ -97,6 +97,11 @@
       "from": "fstream@>=1.0.8 <2.0.0",
       "resolved": "https://registry.npmjs.org/fstream/-/fstream-1.0.9.tgz"
     },
+    "generic-pool": {
+      "version": "2.0.4",
+      "from": "generic-pool@>=2.0.4 <2.1.0",
+      "resolved": "https://registry.npmjs.org/generic-pool/-/generic-pool-2.0.4.tgz"
+    },
     "glob": {
       "version": "7.0.3",
       "from": "glob@>=7.0.0 <8.0.0",
@@ -143,6 +148,11 @@
           "resolved": "https://registry.npmjs.org/mkdirp/-/mkdirp-0.3.0.tgz"
         }
       }
+    },
+    "js-scrypt": {
+      "version": "0.2.0",
+      "from": "js-scrypt@>=0.2.0 <0.3.0",
+      "resolved": "https://registry.npmjs.org/js-scrypt/-/js-scrypt-0.2.0.tgz"
     },
     "keypress": {
       "version": "0.2.1",
@@ -193,6 +203,11 @@
       "version": "1.0.0",
       "from": "path-is-absolute@>=1.0.0 <2.0.0",
       "resolved": "https://registry.npmjs.org/path-is-absolute/-/path-is-absolute-1.0.0.tgz"
+    },
+    "pempal": {
+      "version": "1.0.0",
+      "from": "pempal@latest",
+      "resolved": "https://registry.npmjs.org/pempal/-/pempal-1.0.0.tgz"
     },
     "pemtools": {
       "version": "0.4.7",

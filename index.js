@@ -1,6 +1,6 @@
 var nacl = require('tweetnacl')
   , through = require('through')
-  , pemtools = require('pemtools')
+  , pempal = require('pempal')
   , assert = require('assert')
   , base64url = require('base64-url')
   , prompt = require('cli-prompt')
@@ -155,9 +155,8 @@ salty.loadWallet = function (inPath, cb) {
     else withPrompt(null)
     function withPrompt (passphrase) {
       try {
-        var pem = pemtools(str, 'SALTY WALLET', passphrase)
-        var buf = pem.toBuffer()
-        var wallet = salty.parseWallet(buf)
+        var pem = pempal.decode(str, {tag: 'SALTY WALLET', passphrase: passphrase})
+        var wallet = salty.parseWallet(pem.body)
         passphrase = null
       }
       catch (e) {
@@ -267,7 +266,7 @@ salty.parseWallet = function (buf) {
       ])
     },
     toString: function (passphrase) {
-      return pemtools(this.toBuffer(), 'SALTY WALLET', passphrase).toString()
+      return pempal.encode(this.toBuffer(), {tag: 'SALTY WALLET', passphrase: passphrase})
     }
   }
 }
