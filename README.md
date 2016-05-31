@@ -11,6 +11,7 @@ Commits and tags in this repo are signed with GPG key [5FBB 2F98 3862 1AFF](http
 
 ### Features
 
+- audited, bundled dependencies - no install scripts
 - supports anonymous-sender or signed/verified messaging
 - sharable pubkey string that can fit in a single tweet
 - does NOT use your ssh keys, pgp keys, or anything RSA.
