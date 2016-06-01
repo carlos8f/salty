@@ -105,9 +105,21 @@ describe('tests', function () {
     - import error
     - restore bad pw
     - open wallet bad pw
-    - encrypt noent
+    - encrypt noent, encrypt bad recip
     - decrypt noent
     - decrypt fail (bad hash, bad sig, box open)
     - verify fail
+
+    edge cases
+    - init in home/specified dir
+    - init without email
+    - init without name
+    - weird chars in id?
+    - import from url/file
+    - encrypt for self
+    - force flag
+    - armor flag
+    - delete flag
+    - sign/verify path detection
   */
 })
