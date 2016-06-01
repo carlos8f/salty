@@ -15,7 +15,6 @@ var base64url = require('base64-url')
   , child_process = require('child_process')
   , Progress = require('progress')
   , colors = require('colors')
-  , homeDir = process.env['USER'] === 'root' ? '/root' : process.env['HOME'] || '/home/' + process.env['USER']
   , from = require('from')
   , through = require('through')
   , crypto = require('crypto')
@@ -73,9 +72,9 @@ module.exports = {
       cb()
     })
   },
-  _getRecipients: function (cb) {
+  _getRecipients: function (walletDir, cb) {
     var self = this
-    p = path.join(homeDir, '.salty', 'imported_keys')
+    var p = path.join(walletDir, 'imported_keys')
     fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
       if (err) return cb(err)
       keys = keys.trim().split('\n')
@@ -114,7 +113,7 @@ module.exports = {
       }
       return cb(null, pubkey)
     }
-    this._getRecipients(function (err, recipients) {
+    this._getRecipients(walletDir, function (err, recipients) {
       if (err) return cb(err)
       var recipient = recipients[input]
       if (!recipient) {
@@ -124,7 +123,7 @@ module.exports = {
     })
   },
   getPubkey: function (inPath, cb) {
-    fs.readFile(inPath, {encoding: 'utf8'}, function (err, pubkey) {
+    fs.readFile(path.join(inPath, 'id_salty.pub'), {encoding: 'utf8'}, function (err, pubkey) {
       if (err) return cb(err)
       cb(null, pubkey.trim())
     })

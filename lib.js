@@ -190,7 +190,7 @@ salty.loadPubkey = function (inPath, cb) {
 }
 
 salty.writeWallet = function (outPath, name, email, cb) {
-  salty.loadWallet(outPath, function (err, wallet, pubkey) {
+  salty.loadWallet(outPath, function (err, wallet) {
     if (err && err.code === 'ENOENT') {
       console.error('No wallet found. Creating...')
       var boxKey = nacl.box.keyPair()
@@ -201,7 +201,7 @@ salty.writeWallet = function (outPath, name, email, cb) {
       ])
       wallet = salty.parseWallet(buf)
       var str = salty.buildPubkey(Buffer(boxKey.publicKey), Buffer(signKey.publicKey), name, email)
-      pubkey = salty.parsePubkey(str)
+      wallet.pubkey = salty.parsePubkey(str)
       getPassphrase()
     }
     else if (err) return cb(err)
@@ -209,8 +209,8 @@ salty.writeWallet = function (outPath, name, email, cb) {
       process.stderr.write('Wallet found. Update your wallet? (y/n): ')
       prompt(null, function (resp) {
         if (resp.match(/^y/i)) {
-          pubkey.name = name
-          pubkey.email = email
+          wallet.pubkey.name = name
+          wallet.pubkey.email = email
           getPassphrase()
         }
         else {
@@ -231,11 +231,11 @@ salty.writeWallet = function (outPath, name, email, cb) {
           var str = wallet.toString(passphrase)
           fs.writeFile(path.join(outPath, 'id_salty'), str + '\n', {mode: parseInt('0600', 8)}, function (err) {
             if (err) return cb(err)
-            fs.writeFile(path.join(outPath, 'id_salty.pub'), pubkey.toString() + '\n', {mode: parseInt('0644', 8)}, function (err) {
+            fs.writeFile(path.join(outPath, 'id_salty.pub'), wallet.pubkey.toString() + '\n', {mode: parseInt('0644', 8)}, function (err) {
               if (err) return cb(err)
-              fs.writeFile(path.join(outPath, 'imported_keys'), pubkey.toString() + '\n', {mode: parseInt('0600', 8), flag: 'a+'}, function (err) {
+              fs.writeFile(path.join(outPath, 'imported_keys'), wallet.pubkey.toString() + '\n', {mode: parseInt('0600', 8), flag: 'a+'}, function (err) {
                 if (err) return cb(err)
-                cb(null, wallet, pubkey)
+                cb(null, wallet)
               })
             })
           })

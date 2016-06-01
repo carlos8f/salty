@@ -17,7 +17,8 @@ var program = require('commander')
 
 program
   .command('init')
-  .description('initialize a wallet at ~/.salty')
+  .description('initialize a wallet')
+  .option('-w, --wallet <dir>')
   .action(function (options) {
     prompt('Enter your name (can be blank): ', function (name) {
       name = name.trim()
@@ -31,7 +32,7 @@ program
             }
             email = parsed.address.toLowerCase()
           }
-          var outPath = path.join(homeDir, '.salty')
+          var outPath = options.wallet || path.join(homeDir, '.salty')
           cli.init(outPath, name, email, function (err, wallet, pubkey) {
             if (err) throw err
             if (pubkey) {
@@ -44,11 +45,13 @@ program
   })
 
 program
-  .command('id')
+  .command('pubkey')
   .description('output your shareable pubkey string')
-  .alias('pubkey')
+  .alias('p')
+  .option('-w, --wallet <dir>')
   .action(function (options) {
-    cli.getPubkey(path.join(homeDir, '.salty/id_salty.pub'), function (err, pubkey) {
+    var walletDir = options.wallet || path.join(homeDir, '.salty')
+    cli.getPubkey(walletDir, function (err, pubkey) {
       if (err) throw err
       console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
     })
@@ -58,6 +61,7 @@ program
   .command('import <pubkey|url|file>')
   .alias('i')
   .description('import a pubkey')
+  .option('-w, --wallet <dir>')
   .action(function (pubkey, options) {
     if (pubkey.indexOf('https:') === 0) {
       withGet(https.get, withPubkey)
@@ -93,7 +97,8 @@ program
       })
     }
     function withPubkey (pubkey) {
-      cli.import(path.join(homeDir, '.salty', 'imported_keys'), pubkey, function (err, pubkey) {
+      var walletDir = options.wallet || path.join(homeDir, '.salty')
+      cli.import(path.join(walletDir, 'imported_keys'), pubkey, function (err, pubkey) {
         if (err) throw err
         console.log('imported OK')
       })
