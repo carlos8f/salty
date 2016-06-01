@@ -6,6 +6,7 @@ crypto = require('crypto')
 rimraf = require('rimraf')
 child_process = require('child_process')
 https = require('https')
+suppose = require('suppose')
 
 var tmpDir = path.join(require('os').tmpDir(), Math.random().toString(36).slice(2))
 var BIN = path.join(__dirname, 'salty')
@@ -39,8 +40,19 @@ describe('tests', function () {
       })
   })
 
-  it.skip('set up alice', function (done) {
-    // child_process.spawn(BIN, ['init', 'alice'], {cwd: tmpDir})
+  it('set up alice', function (done) {
+    var alicePath = path.join(tmpDir, 'alice')
+    fs.mkdirSync(alicePath)
+    suppose(BIN, ['init', '.'], {debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Enter your name (can be blank): ').respond('Alice\n')
+      .when('Enter your email address (can be fake/blank): ').respond('alice@s8f.org\n')
+      .when('Create a passphrase: ').respond('disney sucks\n')
+      .when('Confirm passphrase: ').respond('disney sucks\n')
+      .once('error', done)
+      .end(function (code) {
+        assert(!code)
+        done()
+      })
   })
   it.skip('set up bob', function (done) {
 

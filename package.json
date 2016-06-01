@@ -23,7 +23,8 @@
   },
   "devDependencies": {
     "mocha": "^2.4.5",
-    "rimraf": "^2.5.2"
+    "rimraf": "^2.5.2",
+    "suppose": "^0.5.2"
   },
   "scripts": {
     "test": "./node_modules/.bin/mocha --reporter spec --timeout 10s"
@@ -47,6 +48,5 @@
   "bugs": {
     "url": "https://github.com/carlos8f/salty/issues"
   },
-  "bundledDependencies": [
-  ]
+  "bundledDependencies": []
 }

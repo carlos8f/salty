@@ -77,3 +77,7 @@ node_modules/util-deprecate/
 node_modules/verror/
 node_modules/xtend/
 node_modules/to-iso-string
+node_modules/force-array/
+node_modules/is-array/
+node_modules/string/
+node_modules/suppose/
