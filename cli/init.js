@@ -1,25 +1,29 @@
-prompt('Enter your name (can be blank): ', function (name) {
-      name = name.trim()
-      ;(function promptEmail () {
-        prompt('Enter your email address (can be fake/blank): ', function (email) {
-          if (email) {
-            var parsed = addrs.parseOneAddress(email)
-            if (!parsed) {
-              console.error('invalid email!')
-              return promptEmail()
-            }
-            email = parsed.address.toLowerCase()
+var prompt = require('cli-prompt')
+  , fs = require('fs')
+
+module.exports = function (options) {
+  
+  prompt('Enter your name (can be blank): ', function (name) {
+    name = name.trim()
+    ;(function promptEmail () {
+      prompt('Enter your email address (can be fake/blank): ', function (email) {
+        if (email) {
+          email = email.toLowerCase()
+        }
+        var outPath = options.wallet || path.join(homeDir, '.salty')
+
+        cli.init(outPath, name, email, function (err, wallet, pubkey) {
+          if (err) throw err
+          if (pubkey) {
+            console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey.toString() + '\n')
           }
-          var outPath = options.wallet || path.join(homeDir, '.salty')
-          cli.init(outPath, name, email, function (err, wallet, pubkey) {
-            if (err) throw err
-            if (pubkey) {
-              console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey.toString() + '\n')
-            }
-          })
         })
-      })()
-    })
+      })
+    })()
+  })
+}
+
+
 
 init: function (outPath, name, email, cb) {
     fs.stat(outPath, function (err, stat) {

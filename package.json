@@ -8,7 +8,6 @@
     "block-stream": "git+https://github.com/carlos8f/block-stream.git",
     "cli-prompt": "^0.5.1",
     "commander": "^2.9.0",
-    "email-addresses": "^2.0.2",
     "from": "^0.1.3",
     "fstream": "^1.0.8",
     "micro-request": "^666.0.5",
