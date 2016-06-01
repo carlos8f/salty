@@ -42,3 +42,8 @@ sign: function (inPath, outPath, force) {
       inStream.resume()
     })
   },
+
+  function (infile, outfile, options) {
+    outfile || (outfile = infile + '.salty-sig')
+    cli.sign(infile, outfile, options.force)
+  }

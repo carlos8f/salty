@@ -33,3 +33,10 @@ verify: function (inSig, inPath) {
       })
     })
   }
+  function (insig, infile) {
+    if (insig.indexOf('.salty-sig') === -1) {
+      insig += '.salty-sig'
+    }
+    infile || (infile = insig.replace(/\.salty-sig$/, ''))
+    cli.verify(insig, infile)
+  }

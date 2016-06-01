@@ -35,3 +35,7 @@ restore: function (inPath, outDir) {
       }
     })
   }
+
+  function (infile, outdir) {
+    cli.restore(infile, outdir)
+  }

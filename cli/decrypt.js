@@ -61,3 +61,22 @@ function (inPath, outPath, force, del) {
       })
     })
   }
+
+  function (infile, outfile, options) {
+    if (options.armor && infile.indexOf('.pem') === -1) {
+      infile += '.pem'
+    }
+    else if (infile.match(/\.pem$/)) {
+      options.armor = true
+    }
+    if (options.armor) {
+      return cli.decryptMessage(infile)
+    }
+    outfile || (outfile = infile.replace(/\.salty$/, ''))
+    cli.decrypt(
+      infile,
+      outfile,
+      options.force,
+      options.delete
+    )
+  }

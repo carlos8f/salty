@@ -82,3 +82,22 @@ encrypt: function (email, inPath, outPath, nonce, force, del, sign) {
       encryptor.pipe(outStream)
     }
   }
+
+  function (infile, outfile, options) {
+    if (options.message) {
+      return cli.encryptMessage(options.to, options.nonce, options.sign)
+    }
+    if (options.armor) {
+      return cli.encryptPEM(options.to, infile, options.nonce, options.delete, options.sign)
+    }
+    outfile || (outfile = crypto.randomBytes(4).toString('hex') + '.salty')
+    cli.encrypt(
+      options.to,
+      infile,
+      outfile,
+      options.nonce ? Buffer(options.nonce, 'base64') : null,
+      options.force,
+      options.delete,
+      options.sign
+    )
+  }

@@ -1,117 +1,32 @@
 #!/usr/bin/env node
-var cli = require('./cli')
-  , prompt = require('cli-prompt')
-  , addrs = require('email-addresses')
-  , fs = require('fs')
-  , http = require('http')
-  , https = require('https')
-  , salty = require('./')
-  , prettyjson = require('prettyjson')
-  , through = require('through')
-  , path = require('path')
-  , homeDir = process.env['USER'] === 'root' ? '/root' : process.env['HOME'] || '/home/' + process.env['USER']
-  , crypto = require('crypto')
+var cli = require('../cli')
 
 var program = require('commander')
-  .version(require('./package.json').version)
+  .version(require('../package.json').version)
+  .option('-w, --wallet <dir>')
 
 program
   .command('init')
   .description('initialize a wallet')
-  .option('-w, --wallet <dir>')
-  .action(function (options) {
-    prompt('Enter your name (can be blank): ', function (name) {
-      name = name.trim()
-      ;(function promptEmail () {
-        prompt('Enter your email address (can be fake/blank): ', function (email) {
-          if (email) {
-            var parsed = addrs.parseOneAddress(email)
-            if (!parsed) {
-              console.error('invalid email!')
-              return promptEmail()
-            }
-            email = parsed.address.toLowerCase()
-          }
-          var outPath = options.wallet || path.join(homeDir, '.salty')
-          cli.init(outPath, name, email, function (err, wallet, pubkey) {
-            if (err) throw err
-            if (pubkey) {
-              console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey.toString() + '\n')
-            }
-          })
-        })
-      })()
-    })
-  })
+  .action(cli.init)
 
 program
-  .command('pubkey')
+  .command('id')
   .description('output your shareable pubkey string')
-  .alias('p')
-  .option('-w, --wallet <dir>')
-  .action(function (options) {
-    var walletDir = options.wallet || path.join(homeDir, '.salty')
-    cli.getPubkey(walletDir, function (err, pubkey) {
-      if (err) throw err
-      console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey + '\n')
-    })
-  })
+  .alias('pubkey')
+  .action(cli.id)
 
 program
   .command('import <pubkey|url|file>')
   .alias('i')
   .description('import a pubkey')
-  .option('-w, --wallet <dir>')
-  .action(function (pubkey, options) {
-    if (pubkey.indexOf('https:') === 0) {
-      withGet(https.get, withPubkey)
-    }
-    else if (pubkey.indexOf('http:') === 0) {
-      withGet(http.get, withPubkey)
-    }
-    else if (pubkey.indexOf('salty-id') === 0) {
-      withPubkey(pubkey)
-    }
-    else {
-      fs.readFile(pubkey, {encoding: 'utf8'}, function (err, contents) {
-        if (err) throw err
-        withPubkey(contents)
-      })
-    }
-    function withGet (get, cb) {
-      get(pubkey, function (res) {
-        if (res.statusCode !== 200) {
-          throw new Error('non-200 status code from remote server: ' + resp.statusCode)
-        }
-        res.setEncoding('utf8')
-        var body = ''
-        res.on('data', function (chunk) {
-          body += chunk
-        })
-        res.on('end', function () {
-          cb(body)
-        })
-        res.resume()
-      }).on('error', function (err) {
-        throw err
-      })
-    }
-    function withPubkey (pubkey) {
-      var walletDir = options.wallet || path.join(homeDir, '.salty')
-      cli.import(path.join(walletDir, 'imported_keys'), pubkey, function (err, pubkey) {
-        if (err) throw err
-        console.log('imported OK')
-      })
-    }
-  })
+  .action(cli.import)
 
 program
   .command('ls')
   .alias('l')
   .description('list imported keys')
-  .action(function () {
-    cli.ls(path.join(homeDir, '.salty', 'imported_keys'))
-  })
+  .action(cli.ls)
 
 program
   .command('encrypt [infile] [outfile]')
@@ -124,24 +39,7 @@ program
   .option('-a, --armor', 'output as a PEM to STDOUT')
   .option('-F, --force', 'ignore warnings and do it')
   .option('-D, --delete', 'delete the original file after encryption')
-  .action(function (infile, outfile, options) {
-    if (options.message) {
-      return cli.encryptMessage(options.to, options.nonce, options.sign)
-    }
-    if (options.armor) {
-      return cli.encryptPEM(options.to, infile, options.nonce, options.delete, options.sign)
-    }
-    outfile || (outfile = crypto.randomBytes(4).toString('hex') + '.salty')
-    cli.encrypt(
-      options.to,
-      infile,
-      outfile,
-      options.nonce ? Buffer(options.nonce, 'base64') : null,
-      options.force,
-      options.delete,
-      options.sign
-    )
-  })
+  .action(cli.encrypt)
 
 program
   .command('decrypt <infile> [outfile]')
@@ -150,70 +48,30 @@ program
   .option('-a, --armor', 'expect PEM format, output to STDOUT')
   .option('-F, --force', 'ignore warnings and do it')
   .option('-D, --delete', 'delete the salty file after verification')
-  .action(function (infile, outfile, options) {
-    if (options.armor && infile.indexOf('.pem') === -1) {
-      infile += '.pem'
-    }
-    else if (infile.match(/\.pem$/)) {
-      options.armor = true
-    }
-    if (options.armor) {
-      return cli.decryptMessage(infile)
-    }
-    outfile || (outfile = infile.replace(/\.salty$/, ''))
-    cli.decrypt(
-      infile,
-      outfile,
-      options.force,
-      options.delete
-    )
-  })
+  .action(cli.decrypt)
 
 program
   .command('sign <infile> [outfile]')
   .alias('s')
   .description('create a ".salty-sig" signature file')
   .option('-F, --force', 'ignore warnings and do it')
-  .action(function (infile, outfile, options) {
-    outfile || (outfile = infile + '.salty-sig')
-    cli.sign(infile, outfile, options.force)
-  })
+  .action(cli.sign)
 
 program
   .command('verify <insig> [infile]')
   .alias('v')
   .description('verify a ".salty-sig" signature with the original file')
-  .action(function (insig, infile) {
-    if (insig.indexOf('.salty-sig') === -1) {
-      insig += '.salty-sig'
-    }
-    infile || (infile = insig.replace(/\.salty-sig$/, ''))
-    cli.verify(insig, infile)
-  })
+  .action(cli.verify)
 
 program
   .command('save [indir] [outfile]')
   .description('save an encrypted backup of your wallet')
-  .action(function (indir, outfile) {
-    (function getPassphrase () {
-      prompt.password('Create a passphrase: ', function (passphrase) {
-        prompt('Confirm passphrase: ', true, function (passphrase2) {
-          if (passphrase2 !== passphrase) {
-            console.error('Passwords did not match!')
-            return getPassphrase()
-          } 
-          cli.save(passphrase, indir, outfile)
-        })
-      })
-    })()
-  })
+  .action(cli.save)
 
 program
   .command('restore [infile] [outdir]')
   .description('restore your wallet from a backup')
-  .action(function (infile, outdir) {
-    cli.restore(infile, outdir)
-  })
+  .action(cli.restore)
 
 program
   .command('*')

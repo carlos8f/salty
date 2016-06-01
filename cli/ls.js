@@ -10,3 +10,7 @@ ls: function (p) {
       console.log(keys.trim())
     }
   }
+
+  function () {
+    cli.ls(path.join(homeDir, '.salty', 'imported_keys'))
+  }

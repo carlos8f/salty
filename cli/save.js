@@ -27,3 +27,17 @@ save: function (passphrase, inDir, outPath) {
       reader.pipe(tarStream)
     }
   }
+
+  function (indir, outfile) {
+    (function getPassphrase () {
+      prompt.password('Create a passphrase: ', function (passphrase) {
+        prompt('Confirm passphrase: ', true, function (passphrase2) {
+          if (passphrase2 !== passphrase) {
+            console.error('Passwords did not match!')
+            return getPassphrase()
+          } 
+          cli.save(passphrase, indir, outfile)
+        })
+      })
+    })()
+  }

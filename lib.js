@@ -1,14 +1,13 @@
-var nacl = require('tweetnacl')
-var salty = module.exports = {
+module.exports = {
   MAX_CHUNK: 655350,
   EPH_LENGTH: 80,
 
-  ciphertext: require('./lib/ciphertext'),
-  ephemeral: require('./lib/ephemeral'),
-  header: require('./lib/header'),
-  plaintext: require('./lib/plaintext'),
+  //ciphertext: require('./lib/ciphertext'),
+  //ephemeral: require('./lib/ephemeral'),
+  //header: require('./lib/header'),
+  //plaintext: require('./lib/plaintext'),
   pubkey: require('./lib/pubkey'),
-  recipients: require('./lib/recipients'),
+  //recipients: require('./lib/recipients'),
   wallet: require('./lib/wallet'),
 
   a: require('./utils/a'),
