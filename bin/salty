@@ -5,6 +5,7 @@ var cli = require('../cli')
 var program = require('commander')
   .version(require('../package.json').version)
   .option('-w, --wallet <dir>', 'wallet location (default: ~/.salty)', path.join(process.env.HOME, '.salty'))
+  .option('-F, --force', 'do it anyway')
 
 program
   .command('init')

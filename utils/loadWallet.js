@@ -8,13 +8,13 @@ var fs = require('fs')
 function loadWallet (walletDir, cb) {
   fs.readFile(path.join(walletDir, 'id_salty'), {encoding: 'utf8'}, function (err, str) {
     if (err && err.code === 'ENOENT') {
-      err = new Error('No salty-wallet found. Type `salty init` to create one.')
+      err = new Error('No wallet found. Type `salty init` to create one.')
       err.code = 'ENOENT'
       return cb(err)
     }
     if (err) return cb(err)
     if (str.indexOf('ENCRYPTED') !== -1) {
-      process.stderr.write('Salty-wallet is encrypted.\n')
+      process.stderr.write('Wallet is encrypted.\n')
       process.stderr.write('Enter passphrase: ')
       return prompt.password(null, function (passphrase) {
         console.error()

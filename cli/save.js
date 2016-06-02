@@ -1,43 +1,63 @@
-save: function (passphrase, inDir, outPath) {
-    var p = inDir || path.join(homeDir, '.salty')
-    var dest = outPath || './salty.pem'
-    fs.stat(dest, function (err, stat) {
-      if (err && err.code === 'ENOENT') {
-        return withCheck()
+var fs = require('fs')
+  , path = require('path')
+  , tar = require('tar')
+  , zlib = require('zlib')
+  , fstream = require('fstream')
+  , prompt = require('cli-prompt')
+  , pempal = require('pempal')
+
+module.exports = function (inDir, outPath, options) {
+  if (!inDir) inDir = options.parent.wallet
+  if (!outPath) outPath = 'salty.pem'
+  if (options.parent.force) return withCheck()
+  try {
+    fs.statSync(outPath)
+  }
+  catch (e) {
+    if (e.code === 'ENOENT') {
+      return withCheck()
+    }
+  }
+  throw new Error('Refusing to overwrite ' + outPath + '. Use --force to ignore this.')
+  function withCheck () {
+    prompt.multi([
+      {
+        label: 'Create a passphrase',
+        key: 'passphrase',
+        type: 'password'
+      },
+      {
+        label: 'Verify passphrase',
+        key: 'passphrase2',
+        type: 'password',
+        validate: function (val) {
+          var ret = val === this.passphrase
+          if (!ret) process.stderr.write('Passphrase did not match!\n')
+          return ret
+        }
       }
-      else if (err) throw err
-      throw new Error('abort: refusing to overwrite ' + dest)
-    })
-    function withCheck() {
+    ], function (info) {
       var tarStream = tar.Pack({fromBase: true})
       var gzipStream = tarStream.pipe(zlib.createGzip())
       var gzipChunks = []
       gzipStream.on('data', function (chunk) {
         gzipChunks.push(chunk)
       })
-      gzipStream.on('end', function () {
+      gzipStream.once('end', function () {
         var zlibBuffer = Buffer.concat(gzipChunks)
-        var pem = pempal.encode(zlibBuffer, {tag: 'SALTY WALLET', passphrase: passphrase})
-        fs.writeFile(dest, pem + '\n', {mode: parseInt('0644', 8)}, function (err) {
+        var pem = pempal.encode(zlibBuffer, {tag: 'SALTY WALLET', passphrase: info.passphrase})
+        fs.writeFile(outPath, pem + '\n', {mode: parseInt('0644', 8)}, function (err) {
           if (err) throw err
-          console.log('saved to', dest)
+          console.log('Saved to', outPath)
         })
       })
-      var reader = fstream.Reader({path: p, type: 'Directory', sort: 'alpha', mode: parseInt('0700', 8)})
+      var reader = fstream.Reader({
+        path: inDir,
+        type: 'Directory',
+        sort: 'alpha',
+        mode: parseInt('0700', 8)
+      })
       reader.pipe(tarStream)
-    }
+    })
   }
-
-  function (indir, outfile) {
-    (function getPassphrase () {
-      prompt.password('Create a passphrase: ', function (passphrase) {
-        prompt('Confirm passphrase: ', true, function (passphrase2) {
-          if (passphrase2 !== passphrase) {
-            console.error('Passwords did not match!')
-            return getPassphrase()
-          } 
-          cli.save(passphrase, indir, outfile)
-        })
-      })
-    })()
-  }
+}

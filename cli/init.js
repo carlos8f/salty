@@ -12,14 +12,14 @@ module.exports = function (options) {
   catch (e) {
     if (e.code === 'ENOENT') {
       if (e && e.code === 'ENOENT') {
-        process.stderr.write('Creating new salty-wallet...\n')
+        process.stderr.write('Creating wallet...\n')
       }
       fs.mkdirSync(options.parent.wallet, parseInt('0700', 8))
       return doInit()
     }
     throw e
   }
-  process.stderr.write('Salty-wallet exists. Update it? (y/n): ')
+  process.stderr.write('Wallet exists. Update it? (y/n): ')
   prompt(null, function (resp) {
     if (resp.match(/^y/i)) {
       loadWallet(walletDir, function (err, wallet) {
@@ -72,10 +72,10 @@ module.exports = function (options) {
       fs.writeFileSync(path.join(walletDir, 'id_salty'), str + '\n', {mode: parseInt('0600', 8)})
       fs.writeFileSync(path.join(walletDir, 'id_salty.pub'), wallet.pubkey.toString() + '\n', {mode: parseInt('0644', 8)})
       if (isUpdate) {
-        console.log('\nSalty-wallet updated at ' + walletDir)
+        console.log('\nWallet updated at ' + walletDir)
       }
       else {
-        console.log('\nSalty-wallet created at ' + walletDir)
+        console.log('\nWallet created at ' + walletDir)
         console.log('Hint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'')
         console.log('...allowing them to `salty encrypt` messages to you!\n\n\t' + wallet.pubkey.toString() + '\n')
       }

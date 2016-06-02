@@ -39,7 +39,7 @@ describe('tests', function () {
   })
   it('set up alice', function (done) {
     suppose(BIN, ['init', '--wallet', 'alice'], {cwd: tmpDir})
-      .when('Creating new salty-wallet...\nYour name: ').respond('Alice\n')
+      .when('Creating wallet...\nYour name: ').respond('Alice\n')
       .when('Your email address: ').respond('alice@s8f.org\n')
       .when('Create a passphrase: ').respond('disney sucks\n')
       .when('Verify passphrase: ').respond('disney sucks\n')
@@ -50,7 +50,7 @@ describe('tests', function () {
   })
   it('set up bob', function (done) {
     suppose(BIN, ['init', '--wallet', 'bob'], {cwd: tmpDir})
-      .when('Creating new salty-wallet...\nYour name: ').respond('Bob\n')
+      .when('Creating wallet...\nYour name: ').respond('Bob\n')
       .when('Your email address: ').respond('bob@s8f.org\n')
       .when('Create a passphrase: ').respond('i am bob\n')
       .when('Verify passphrase: ').respond('i am bob\n')
@@ -79,8 +79,8 @@ describe('tests', function () {
   })
   it('alice change password', function (done) {
     suppose(BIN, ['init', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
-      .when('Salty-wallet exists. Update it? (y/n): ').respond('y\n')
-      .when('Salty-wallet is encrypted.\nEnter passphrase: ').respond('disney sucks\n')
+      .when('Wallet exists. Update it? (y/n): ').respond('y\n')
+      .when('Wallet is encrypted.\nEnter passphrase: ').respond('disney sucks\n')
       .when('Your name: (Alice) ').respond('\n')
       .when('Your email address: (alice@s8f.org) ').respond('\n')
       .when('Create a passphrase: ').respond('not a blonde\n')
@@ -136,7 +136,14 @@ describe('tests', function () {
       })
   })
   it.skip('alice save', function (done) {
-
+    var chunks = []
+    var proc = suppose(BIN, ['import', '--wallet', 'alice', bob_pubkey], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Enter name: (Bob) ').respond('\n')
+      .when('Enter email: (bob@s8f.org) ').respond('\n')
+      .end(function (code) {
+        assert(!code)
+        done()
+      })
   })
   it.skip('alice destroy', function (done) {
 
