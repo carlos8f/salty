@@ -18,9 +18,12 @@
     "through": "~2.3.1",
     "tweetnacl": "^0.14.3"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "mocha": "^2.5.3",
+    "suppose": "git+https://github.com/carlos8f/node-suppose.git"
+  },
   "scripts": {
-    "test": "./node_modules/.bin/mocha --reporter spec --timeout 10s"
+    "test": "./node_modules/.bin/mocha --reporter spec --timeout 10s --bail"
   },
   "repository": {
     "type": "git",

@@ -1,35 +1,33 @@
-assert = require('assert')
-salty = require('./')
-fs = require('fs')
-path = require('path')
-crypto = require('crypto')
-rimraf = require('rimraf')
-child_process = require('child_process')
-https = require('https')
-suppose = require('suppose')
-
-var tmpDir = path.join(require('os').tmpDir(), Math.random().toString(36).slice(2))
-var BIN = path.join(__dirname, 'salty')
-
-fs.mkdirSync(tmpDir)
-if (!process.env.DEBUG) {
-  process.on('exit', function () {
-    rimraf.sync(tmpDir)
-  })
-}
-else console.log('tmpDir', tmpDir)
+var assert = require('assert')
+  , fs = require('fs')
+  , path = require('path')
+  , crypto = require('crypto')
+  , rimraf = require('rimraf')
+  , child_process = require('child_process')
+  , suppose = require('suppose')
+  , tmpDir = path.join(require('os').tmpDir(), Math.random().toString(36).slice(2))
+  , BIN = path.join(__dirname, '..', 'bin', 'salty')
+  , request = require('micro-request')
 
 describe('tests', function () {
   var p = path.join(tmpDir, 'alice.jpg')
 
+  before(function () {
+    fs.mkdirSync(tmpDir)
+    if (!process.env.DEBUG) {
+      process.on('exit', function () {
+        rimraf.sync(tmpDir)
+      })
+    }
+    else console.log('tmpDir', tmpDir)
+  })
+
   it('stream fixture', function (done) {
-    https.request({
-      hostname: 'raw.githubusercontent.com',
-      path: '/carlos8f/node-buffet/master/test/files/folder/Alice-white-rabbit.jpg'
-    }, function (res) {
-      res.pipe(fs.createWriteStream(p))
-      .on('finish', done)
-    }).end()
+    request('https://raw.githubusercontent.com/carlos8f/node-buffet/master/test/files/folder/Alice-white-rabbit.jpg', {stream: true}, function (err, resp, body) {
+      assert.ifError(err)
+      body.pipe(fs.createWriteStream(p))
+        .once('finish', done)
+    })
   })
   it('verify stream fixture', function (done) {
     fs.createReadStream(p)
@@ -39,13 +37,12 @@ describe('tests', function () {
         done()
       })
   })
-
   it('set up alice', function (done) {
     suppose(BIN, ['init', '--wallet', 'alice'], {cwd: tmpDir})
-      .when('Enter your name (can be blank): ').respond('Alice\n')
-      .when('Enter your email address (can be fake/blank): ').respond('alice@s8f.org\n')
+      .when('Creating new salty-wallet...\nYour name: ').respond('Alice\n')
+      .when('Your email address: ').respond('alice@s8f.org\n')
       .when('Create a passphrase: ').respond('disney sucks\n')
-      .when('Confirm passphrase: ').respond('disney sucks\n')
+      .when('Verify passphrase: ').respond('disney sucks\n')
       .end(function (code) {
         assert(!code)
         done()
@@ -53,10 +50,10 @@ describe('tests', function () {
   })
   it('set up bob', function (done) {
     suppose(BIN, ['init', '--wallet', 'bob'], {cwd: tmpDir})
-      .when('Enter your name (can be blank): ').respond('Bob\n')
-      .when('Enter your email address (can be fake/blank): ').respond('bob@s8f.org\n')
+      .when('Creating new salty-wallet...\nYour name: ').respond('Bob\n')
+      .when('Your email address: ').respond('bob@s8f.org\n')
       .when('Create a passphrase: ').respond('i am bob\n')
-      .when('Confirm passphrase: ').respond('i am bob\n')
+      .when('Verify passphrase: ').respond('i am bob\n')
       .end(function (code) {
         assert(!code)
         done()
@@ -82,12 +79,12 @@ describe('tests', function () {
   })
   it('alice change password', function (done) {
     suppose(BIN, ['init', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
-      .when('Enter your name (can be blank): ').respond('Alice\n')
-      .when('Enter your email address (can be fake/blank): ').respond('alice@s8f.org\n')
-      .when('Enter your passphrase: ').respond('disney sucks\n')
-      .when('Wallet found. Update your wallet? (y/n): ').respond('y\n')
+      .when('Salty-wallet exists. Update it? (y/n): ').respond('y\n')
+      .when('Salty-wallet is encrypted.\nEnter passphrase: ').respond('disney sucks\n')
+      .when('Your name: (Alice) ').respond('\n')
+      .when('Your email address: (alice@s8f.org) ').respond('\n')
       .when('Create a passphrase: ').respond('not a blonde\n')
-      .when('Confirm passphrase: ').respond('not a blonde\n')
+      .when('Verify passphrase: ').respond('not a blonde\n')
       .end(function (code) {
         assert(!code)
         done()

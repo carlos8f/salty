@@ -4,11 +4,11 @@ var cli = require('../cli')
 
 var program = require('commander')
   .version(require('../package.json').version)
-  .option('-w, --wallet <dir>', 'wallet location', path.join(process.env.HOME, '.salty'))
+  .option('-w, --wallet <dir>', 'wallet location (default: ~/.salty)', path.join(process.env.HOME, '.salty'))
 
 program
   .command('init')
-  .description('initialize a wallet')
+  .description('initialize or update a wallet')
   .action(cli.init)
 
 program

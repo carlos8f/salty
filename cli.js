@@ -1,7 +1,7 @@
 module.exports = {
   //decrypt: require('./cli/decrypt'),
   //encrypt: require('./cli/encrypt'),
-  //id: require('./cli/id'),
+  id: require('./cli/id'),
   //import: require('./cli/import'),
   init: require('./cli/init'),
   //ls: require('./cli/ls'),
