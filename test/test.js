@@ -38,7 +38,7 @@ describe('tests', function () {
       })
   })
   it('set up alice', function (done) {
-    suppose(BIN, ['init', '--wallet', 'alice'], {cwd: tmpDir})
+    suppose(BIN, ['init', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
       .when('Creating wallet...\nYour name: ').respond('Alice\n')
       .when('Your email address: ').respond('alice@s8f.org\n')
       .when('Create a passphrase: ').respond('disney sucks\n')
@@ -49,7 +49,7 @@ describe('tests', function () {
       })
   })
   it('set up bob', function (done) {
-    suppose(BIN, ['init', '--wallet', 'bob'], {cwd: tmpDir})
+    suppose(BIN, ['init', '--wallet', 'bob'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
       .when('Creating wallet...\nYour name: ').respond('Bob\n')
       .when('Your email address: ').respond('bob@s8f.org\n')
       .when('Create a passphrase: ').respond('i am bob\n')
