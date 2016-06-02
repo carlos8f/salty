@@ -13,7 +13,7 @@ module.exports = function (inPath, outDir, options) {
     fs.statSync(outDir)
   }
   catch (e) {
-    if (err && err.code === 'ENOENT') return withCheck()
+    if (e && e.code === 'ENOENT') return withCheck()
     throw e
   }
   throw new Error('Refusing to overwrite ' + outDir + '. Use --force to ignore this.')
@@ -34,7 +34,7 @@ module.exports = function (inPath, outDir, options) {
     var extractStream = tar.Extract({path: outDir, mode: parseInt('0700', 8)})
     var gunzipStream = zlib.createGunzip()
     extractStream.on('end', function () {
-      console.log('restored to', dest)
+      console.log('Restored to', outDir)
     })
     gunzipStream.pipe(extractStream)
     gunzipStream.end(buf)

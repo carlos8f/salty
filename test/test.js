@@ -135,21 +135,27 @@ describe('tests', function () {
         done()
       })
   })
-  it.skip('alice save', function (done) {
+  it('alice save', function (done) {
     var chunks = []
-    var proc = suppose(BIN, ['import', '--wallet', 'alice', bob_pubkey], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
-      .when('Enter name: (Bob) ').respond('\n')
-      .when('Enter email: (bob@s8f.org) ').respond('\n')
+    var proc = suppose(BIN, ['save', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Create a passphrase: ').respond('blarg\n')
+      .when('Verify passphrase: ').respond('blarg\n')
       .end(function (code) {
         assert(!code)
         done()
       })
   })
-  it.skip('alice destroy', function (done) {
-
+  it('alice destroy', function () {
+    rimraf.sync(path.join(tmpDir, 'alice'))
   })
-  it.skip('alice restore', function (done) {
-
+  it('alice restore', function (done) {
+    var chunks = []
+    var proc = suppose(BIN, ['restore', 'salty.pem', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Enter passphrase: ').respond('blarg\n')
+      .end(function (code) {
+        assert(!code)
+        done()
+      })
   })
   it.skip('alice encrypt for bob (no sign)', function (done) {
 
