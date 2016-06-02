@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 var cli = require('../cli')
+  , path = require('path')
 
 var program = require('commander')
   .version(require('../package.json').version)
-  .option('-w, --wallet <dir>')
+  .option('-w, --wallet <dir>', 'wallet location', path.join(process.env.HOME, '.salty'))
 
 program
   .command('init')

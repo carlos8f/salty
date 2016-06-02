@@ -14,7 +14,8 @@ function loadWallet (walletDir, cb) {
     }
     if (err) return cb(err)
     if (str.indexOf('ENCRYPTED') !== -1) {
-      process.stderr.write('Enter your passphrase: ')
+      process.stderr.write('Salty-wallet is encrypted.\n')
+      process.stderr.write('Enter passphrase: ')
       return prompt.password(null, function (passphrase) {
         console.error()
         withPrompt(passphrase)
@@ -37,3 +38,4 @@ function loadWallet (walletDir, cb) {
     }
   })
 }
+module.exports = loadWallet
