@@ -64,6 +64,10 @@ module.exports = function (options) {
       if (!wallet) {
         wallet = libWallet.create(info)
       }
+      else {
+        wallet.name = info.name
+        wallet.email = info.email
+      }
       var str = wallet.toPEM(info.passphrase)
       fs.writeFileSync(path.join(walletDir, 'id_salty'), str + '\n', {mode: parseInt('0600', 8)})
       fs.writeFileSync(path.join(walletDir, 'id_salty.pub'), wallet.pubkey.toString() + '\n', {mode: parseInt('0644', 8)})
