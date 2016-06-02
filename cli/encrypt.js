@@ -1,74 +1,64 @@
-encrypt: function (email, inPath, outPath, nonce, force, del, sign) {
-    // encrypt a stream for pubkey
-    var self = this
+var fs = require('fs')
+  , loadRecipients = require('../utils/loadRecipients')
+  , crypto = require('crypto')
+  , constants = require('../lib/constants')
+  , BlockStream = require('block-stream')
+  , makeNonce = require('../utils/makeNonce')
+  , libPlaintext = require('../lib/plaintext')
+  , printHeader = require('../utils/printHeader')
+  , translateHeader = require('../utils/translateHeader')
 
-    try {
-      fs.statSync(outPath)
-      if (!force) {
-        throw new Error('refusing to overwrite ' + outPath + '. use --force to ignore this.')
-      }
+module.exports = function (inFile, outFile, options) {
+  var stat = fs.statSync(inFile)
+  if (!outFile) {
+    outFile = crypto.randomBytes(4).toString('hex') + '.salty'
+  }
+  var nonce = options.nonce ? Buffer(options.nonce, 'base64') : makeNonce()
+  try {
+    fs.statSync(outFile)
+    if (!options.parent.force) {
+      throw new Error('Refusing to overwrite ' + outFile + '. use --force to ignore this.')
     }
-    catch (err) {
-      if (err && err.code !== 'ENOENT') {
-        throw err
-      }
+  }
+  catch (err) {
+    if (err && err.code !== 'ENOENT') {
+      throw err
     }
-
-    self._getRecipients(function (err, recipients) {
-      if (err) throw err
-      if (!email) {
-        salty.loadPubkey(path.join(homeDir, '.salty'), function (err, pubkey) {
-          if (err) throw err
-          email = pubkey.email
-          withEmail(email)
-        })
-      }
-      else withEmail(email)
-
-      function withEmail () {
-        var recipient = recipients[email]
-        if (!recipient) {
-          recipient = salty.parsePubkey(email)
-        }
-        if (sign) {
-          salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
-            if (err) throw err
-            withWallet(recipient, wallet, recipients)
-          })
-        }
-        else withWallet(recipient, null, recipients)
-      }
-    })
-    function withWallet (recipient, wallet, recipients) {
-      var inStat = fs.statSync(inPath)
-      var inStream = fs.createReadStream(inPath).pipe(new BlockStream(salty.MAX_CHUNK, {nopad: true}))
-      //inStream.pipe(sha('inStream'))
-      var encryptor = self._encryptStream(recipient, nonce, inStream, wallet, inStat.size)
-      //encryptor.pipe(sha('encryptor'))
+  }
+  loadRecipients(options.parent.wallet, function (err, recipients) {
+    if (err) throw err
+    var recipient = options.to ? recipients[options.to] : recipients.self
+    if (!recipient) {
+      throw new Error('Recipient not found')
+    }
+    if (options.sign) {
+      loadWallet(walletDir, function (err, wallet) {
+        if (err) throw err
+        withWallet(wallet)
+      })
+    }
+    else withWallet()
+    function withWallet (wallet) {
+      var plaintext = libPlaintext.create(inPath, recipient, options.nonce, wallet)
+      var encryptor = plaintext.encrypt()
       var header
       encryptor.once('header', function (h) {
-        header = h
-        if (header['from-salty-id'] && recipients[header['from-salty-id']]) {
-          header['from-salty-id'] = recipients[header['from-salty-id']].toNiceString()
-        }
-        if (header['to-salty-id'] && recipients[header['to-salty-id']]) {
-          header['to-salty-id'] = recipients[header['to-salty-id']].toNiceString()
-        }
+        header = translateHeader(h, recipients)
       })
-      var outStream = fs.createWriteStream(outPath, {mode: parseInt('0600', 8)})
+      var outStream = fs.createWriteStream(outFile, {mode: parseInt('0644', 8)})
       outStream.once('finish', function () {
         bar.terminate()
-        self._printHeader(header)
-        console.log('encrypted to', outPath)
+        printHeader(header)
+        console.log('Encrypted to', outFile)
       })
       process.on('uncaughtException', function (err) {
         try {
-          fs.unlinkSync(outPath)
+          fs.unlinkSync(outFile)
         }
         catch (e) {}
         throw err
       })
-      var bar = new Progress('  encrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
+      var bar = new Progress('  encrypting [:bar] :percent ETA: :etas', { total: stat.size, width: 80 })
       var chunkCounter = 0
       var tickCounter = 0
       encryptor.on('data', function (chunk) {
@@ -81,23 +71,14 @@ encrypt: function (email, inPath, outPath, nonce, force, del, sign) {
       })
       encryptor.pipe(outStream)
     }
-  }
+  })
+}
 
-  function (infile, outfile, options) {
-    if (options.message) {
+/*
+if (options.message) {
       return cli.encryptMessage(options.to, options.nonce, options.sign)
     }
     if (options.armor) {
       return cli.encryptPEM(options.to, infile, options.nonce, options.delete, options.sign)
     }
-    outfile || (outfile = crypto.randomBytes(4).toString('hex') + '.salty')
-    cli.encrypt(
-      options.to,
-      infile,
-      outfile,
-      options.nonce ? Buffer(options.nonce, 'base64') : null,
-      options.force,
-      options.delete,
-      options.sign
-    )
-  }
+    */

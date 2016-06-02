@@ -157,8 +157,13 @@ describe('tests', function () {
         done()
       })
   })
-  it.skip('alice encrypt for bob (no sign)', function (done) {
-
+  it('alice encrypt for bob (no sign)', function (done) {
+    var proc = suppose(BIN, ['encrypt', '--to', 'bob@s8f.org', 'alice.jpg', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .end(function (code) {
+        assert(!code)
+        done()
+      })
+      .stdout.pipe(process.stdout)
   })
   it.skip('bob decrypt', function (done) {
 
