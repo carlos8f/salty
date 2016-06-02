@@ -2,8 +2,8 @@ var fs = require('fs')
   , path = require('path')
   , prompt = require('cli-prompt')
   , pempal = require('pempal')
-  , saltyPubkey = require('../lib/pubkey')
-  , saltyWallet = require('../lib/wallet')
+  , libPubkey = require('../lib/pubkey')
+  , libWallet = require('../lib/wallet')
 
 function loadWallet (walletDir, cb) {
   fs.readFile(path.join(walletDir, 'id_salty'), {encoding: 'utf8'}, function (err, str) {
@@ -25,14 +25,14 @@ function loadWallet (walletDir, cb) {
     function withPrompt (passphrase) {
       try {
         var pem = pempal.decode(str, {tag: 'SALTY WALLET', passphrase: passphrase})
-        var wallet = saltyWallet(pem.body)
+        var wallet = libWallet.parse(pem.body)
       }
       catch (e) {
         return cb(e)
       }
       fs.readFile(path.join(walletDir, 'id_salty.pub'), {encoding: 'utf8'}, function (err, pubkey) {
         if (err) return cb(err)
-        wallet.pubkey = saltyPubkey(pubkey)
+        wallet.pubkey = libPubkey.parse(pubkey)
         cb(null, wallet)
       })
     }

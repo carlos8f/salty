@@ -84,7 +84,9 @@ exports.decode = function (str, options) {
         parallel: options.parallel || 1,
         size: nacl.secretbox.keyLength
       })
-      buf = Buffer(nacl.secretbox.open(a(buf), a(nonce), a(key)))
+      var plaintext = nacl.secretbox.open(a(buf), a(nonce), a(key))
+      assert(plaintext, 'Bad passphrase')
+      buf = Buffer(plaintext)
     }
   }
 

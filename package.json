@@ -12,7 +12,7 @@
     "fstream": "^1.0.8",
     "micro-request": "^666.0.5",
     "nacl-stream": "^0.3.3",
-    "pempal": "^1.0.0",
+    "pempal": "^1.0.1",
     "progress": "^1.1.8",
     "tar": "^2.2.1",
     "through": "~2.3.1",

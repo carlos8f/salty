@@ -2,30 +2,36 @@ var prompt = require('cli-prompt')
   , fs = require('fs')
   , loadWallet = require('../utils/loadWallet')
   , libWallet = require('../lib/wallet')
+  , path = require('path')
 
 module.exports = function (options) {
-  loadWallet(options.parent.wallet, function (err, wallet) {
-    if (err && err.code === 'ENOENT') {
-      fs.mkdir(options.parent.wallet, parseInt('0700', 8), function (err) {
-        if (err && err.code !== 'EEXIST') return cb(err)
+  var walletDir = options.parent.wallet
+  try {
+    var stat = fs.statSync(path.join(walletDir, 'id_salty'))
+  }
+  catch (e) {
+    if (e.code === 'ENOENT') {
+      if (e && e.code === 'ENOENT') {
         process.stderr.write('Creating new salty-wallet...\n')
-        doInit()
-      })
-      return
+      }
+      fs.mkdirSync(options.parent.wallet, parseInt('0700', 8))
+      return doInit()
     }
-    else if (err) throw err
-    process.stderr.write('Salty-wallet exists. Update it? (y/n): ')
-    prompt(null, function (resp) {
-      if (resp.match(/^y/i)) {
+    throw e
+  }
+  process.stderr.write('Salty-wallet exists. Update it? (y/n): ')
+  prompt(null, function (resp) {
+    if (resp.match(/^y/i)) {
+      loadWallet(walletDir, function (err, wallet) {
+        if (err) throw err
         doInit(wallet)
-      }
-      else {
-        console.error('Cancelled.')
-      }
-    })
+      })
+    }
+    else {
+      console.error('Cancelled.')
+    }
   })
-  return
-  
+
   function doInit (wallet) {
     prompt.multi([
       {
@@ -54,88 +60,22 @@ module.exports = function (options) {
         }
       }
     ], function (info) {
+      var isUpdate = !!wallet
       if (!wallet) {
         wallet = libWallet.create(info)
       }
+      var str = wallet.toPEM(info.passphrase)
+      fs.writeFileSync(path.join(walletDir, 'id_salty'), str + '\n', {mode: parseInt('0600', 8)})
+      fs.writeFileSync(path.join(walletDir, 'id_salty.pub'), wallet.pubkey.toString() + '\n', {mode: parseInt('0644', 8)})
+      fs.writeFileSync(path.join(walletDir, 'imported_keys'), wallet.pubkey.toString() + '\n', {mode: parseInt('0600', 8), flag: 'a+'})
+      if (isUpdate) {
+        console.log('\nSalty-wallet updated at ' + walletDir)
+      }
+      else {
+        console.log('\nSalty-wallet created at ' + walletDir)
+        console.log('Hint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'')
+        console.log('...allowing them to `salty encrypt` messages to you!\n\n\t' + wallet.pubkey.toString() + '\n')
+      }
     })
   }
-  return
-  prompt('Enter your name (can be blank): ', function (name) {
-    name = name.trim()
-    ;(function promptEmail () {
-      prompt('Enter your email address (can be fake/blank): ', function (email) {
-        if (email) {
-          email = email.toLowerCase()
-        }
-        var outPath = options.wallet || path.join(homeDir, '.salty')
-
-        cli.init(outPath, name, email, function (err, wallet, pubkey) {
-          if (err) throw err
-          if (pubkey) {
-            console.log('\nHint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'\nit, and then `salty encrypt` messages to you!\n\n\t' + pubkey.toString() + '\n')
-          }
-        })
-      })
-    })()
-  })
 }
-/*
-
-  function (outPath, name, email, cb) {
-        saltyWallet.load(outPath, function (err, wallet) {
-          if (err && err.code === 'ENOENT') {
-            console.error('No wallet found. Creating...')
-            var boxKey = nacl.box.keyPair()
-            var signKey = nacl.sign.keyPair()
-            var buf = Buffer.concat([
-              Buffer(boxKey.secretKey),
-              Buffer(signKey.secretKey)
-            ])
-            wallet = salty.parseWallet(buf)
-            var str = salty.buildPubkey(Buffer(boxKey.publicKey), Buffer(signKey.publicKey), name, email)
-            wallet.pubkey = salty.parsePubkey(str)
-            getPassphrase()
-          }
-          else if (err) return cb(err)
-          else {
-            process.stderr.write('Wallet found. Update your wallet? (y/n): ')
-            prompt(null, function (resp) {
-              if (resp.match(/^y/i)) {
-                wallet.pubkey.name = name
-                wallet.pubkey.email = email
-                getPassphrase()
-              }
-              else {
-                console.error('Cancelled.')
-                cb()
-              }
-            })
-          }
-          function getPassphrase () {
-            process.stderr.write('Create a passphrase: ')
-            prompt(null, true, function (passphrase) {
-              process.stderr.write('Confirm passphrase: ')
-              prompt(null, true, function (passphrase2) {
-                if (passphrase2 !== passphrase) {
-                  console.error('Passwords did not match!')
-                  return getPassphrase()
-                } 
-                var str = wallet.toPEM(passphrase)
-                fs.writeFile(path.join(outPath, 'id_salty'), str + '\n', {mode: parseInt('0600', 8)}, function (err) {
-                  if (err) return cb(err)
-                  fs.writeFile(path.join(outPath, 'id_salty.pub'), wallet.pubkey.toString() + '\n', {mode: parseInt('0644', 8)}, function (err) {
-                    if (err) return cb(err)
-                    fs.writeFile(path.join(outPath, 'imported_keys'), wallet.pubkey.toString() + '\n', {mode: parseInt('0600', 8), flag: 'a+'}, function (err) {
-                      if (err) return cb(err)
-                      cb(null, wallet)
-                    })
-                  })
-                })
-              })
-            })
-          }
-        })
-      }
-
-*/
-
