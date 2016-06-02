@@ -1,16 +1,13 @@
-ls: function (p) {
-    fs.readFile(p, {encoding: 'utf8'}, function (err, keys) {
-      if (err && err.code === 'ENOENT') {
-        return withKeys('')
-      }
-      else if (err) return cb(err)
-      withKeys(keys)
-    })
-    function withKeys (keys) {
-      console.log(keys.trim())
-    }
-  }
+var fs = require('fs')
+  , path = require('path')
 
-  function () {
-    cli.ls(path.join(homeDir, '.salty', 'imported_keys'))
+module.exports = function (options) {
+  var inPath = path.join(options.parent.wallet, 'imported_keys')
+  try {
+    var str = fs.readFileSync(inPath, {encoding: 'utf8'})
   }
+  catch (e) {
+    return
+  }
+  console.log(str.trim())
+}

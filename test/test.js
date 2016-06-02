@@ -111,28 +111,16 @@ describe('tests', function () {
   it('alice import bob', function (done) {
     var chunks = []
     var proc = suppose(BIN, ['import', '--wallet', 'alice', bob_pubkey], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Enter name: (Bob) ').respond('\n')
+      .when('Enter email: (bob@s8f.org) ').respond('\n')
       .end(function (code) {
         assert(!code)
-      })
-
-    proc.stderr.pipe(process.stderr)
-
-    proc
-      .stdout.on('data', function (chunk) {
-        chunks.push(chunk)
-      })
-      .once('end', function () {
-        var stdout = Buffer.concat(chunks).toString('utf8')
-        console.error('stdout', stdout)
-        var match = stdout.match(/salty\-id ([a-zA-Z0-9-\_]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/)
-        assert(match)
-        assert.equal(match[0], bob_pubkey)
         done()
       })
   })
   it('alice ls', function (done) {
     var chunks = []
-    suppose(BIN, ['import', '--wallet', 'alice', bob_pubkey], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+    suppose(BIN, ['ls', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
       .end(function (code) {
         assert(!code)
       })
@@ -142,9 +130,8 @@ describe('tests', function () {
       .once('end', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
         var match = stdout.match(/salty\-id ([a-zA-Z0-9-\_]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/g)
-        assert(match)
-        assert.equal(match[0], alice_pubkey)
-        assert.equal(match[1], bob_pubkey)
+        assert.equal(match.length, 1)
+        assert.equal(match[0], bob_pubkey)
         done()
       })
   })

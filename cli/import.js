@@ -1,57 +1,51 @@
-import: function (outPath, str, cb) {
-    // import pubkey into ~/.salty/imported_keys
-    try {
-      var pubkey = salty.parsePubkey(str)
+var fs = require('fs')
+  , path = require('path')
+  , request = require('micro-request')
+  , libPubkey = require('../lib/pubkey')
+  , prompt = require('cli-prompt')
+
+module.exports = function (input, options) {
+  var outPath = path.join(options.parent.wallet, 'imported_keys')
+  if (input.indexOf('http') === 0) {
+    request(input, function (err, resp, body) {
+      if (err) throw err
+      if (resp.status !== 200) throw new Error('non-200 status from remote: ' + resp.status)
+      if (Buffer.isBuffer(body)) body = body.toString('utf8')
+      var pubkey = libPubkey.parse(body)
+      withPubkey(pubkey)
+    })
+    return
+  }
+  try {
+    var stat = fs.statSync(input)
+    var str = fs.readFileSync(input, {encoding: 'utf8'})
+    var pubkey = libPubkey.parse(str)
+    withPubkey(pubkey)
+  }
+  catch (e) {
+    if (e.code === 'ENOENT') {
+      var pubkey = libPubkey.parse(input)
+      return withPubkey(pubkey)
     }
-    catch (e) {
-      return cb(e)
-    }
-    fs.writeFile(outPath, pubkey.toString() + '\n', {mode: parseInt('0600', 8), flag: 'a+'}, function (err) {
-      if (err) return cb(err)
-      console.log('\n\t' + pubkey.toString() + '\n')
-      cb()
+    throw e
+  }
+  function withPubkey (pubkey) {
+    prompt.multi([
+      {
+        label: 'Enter name',
+        key: 'name',
+        default: pubkey.name
+      },
+      {
+        label: 'Enter email',
+        key: 'email',
+        default: pubkey.email
+      }
+    ], function (info) {
+      pubkey.name = info.name
+      pubkey.email = info.email
+      fs.writeFileSync(outPath, pubkey.toString() + '\n', {mode: parseInt('0600', 8), flag: 'a+'})
+      console.log('Imported OK: ' + pubkey.toString(true))
     })
   }
-
-  function (pubkey, options) {
-    if (pubkey.indexOf('https:') === 0) {
-      withGet(https.get, withPubkey)
-    }
-    else if (pubkey.indexOf('http:') === 0) {
-      withGet(http.get, withPubkey)
-    }
-    else if (pubkey.indexOf('salty-id') === 0) {
-      withPubkey(pubkey)
-    }
-    else {
-      fs.readFile(pubkey, {encoding: 'utf8'}, function (err, contents) {
-        if (err) throw err
-        withPubkey(contents)
-      })
-    }
-    function withGet (get, cb) {
-      get(pubkey, function (res) {
-        if (res.statusCode !== 200) {
-          throw new Error('non-200 status code from remote server: ' + resp.statusCode)
-        }
-        res.setEncoding('utf8')
-        var body = ''
-        res.on('data', function (chunk) {
-          body += chunk
-        })
-        res.on('end', function () {
-          cb(body)
-        })
-        res.resume()
-      }).on('error', function (err) {
-        throw err
-      })
-    }
-    function withPubkey (pubkey) {
-      var walletDir = options.wallet || path.join(homeDir, '.salty')
-      cli.import(path.join(walletDir, 'imported_keys'), pubkey, function (err, pubkey) {
-        if (err) throw err
-        console.log('imported OK')
-      })
-    }
-  }
+}
