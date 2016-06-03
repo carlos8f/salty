@@ -15,7 +15,7 @@ describe('tests', function () {
   before(function () {
     fs.mkdirSync(tmpDir)
     if (!process.env.DEBUG) {
-      process.on('exit', function () {
+      process.once('exit', function () {
         rimraf.sync(tmpDir)
       })
     }
@@ -157,15 +157,31 @@ describe('tests', function () {
         done()
       })
   })
+  var outFile
   it('alice encrypt for bob (no sign)', function (done) {
+    var chunks = []
     var proc = suppose(BIN, ['encrypt', '--to', 'bob@s8f.org', 'alice.jpg', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .end(function (code) {
+        assert(!code)
+      })
+      .stdout.on('data', function (chunk) {
+        chunks.push(chunk)
+      })
+      .once('end', function () {
+        var stdout = Buffer.concat(chunks).toString('utf8')
+        var match = stdout.match(/Encrypted to (.*)/)
+        assert(match)
+        outFile = match[1]
+        done()
+      })
+  })
+  it('bob decrypt', function (done) {
+    var proc = suppose(BIN, ['decrypt', outFile, '--wallet', 'bob'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
       .end(function (code) {
         assert(!code)
         done()
       })
-  })
-  it.skip('bob decrypt', function (done) {
-
+      .stderr.pipe(process.stderr)
   })
   it.skip('alice encrypt for bob (sign)', function (done) {
 

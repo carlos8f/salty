@@ -1,20 +1,25 @@
-function (inPath, outPath, force, del) {
-    // decrypt a stream with wallet
-    var self = this
-    var inStat = fs.statSync(inPath)
-    var inStream = fs.createReadStream(inPath).pipe(new BlockStream(salty.MAX_CHUNK, {nopad: true}))
-    try {
-      fs.statSync(outPath)
-      if (!force) {
-        throw new Error('refusing to overwrite ' + outPath + '. use --force to ignore this.')
-      }
+var fs = require('fs')
+  , 
+
+module.exports = function (inFile, outFile, options) {
+  if (!outFile) {
+    outFile = inFile.replace(/\.salty$/, '')
+  }
+  var self = this
+  var inStat = fs.statSync(inPath)
+  var inStream = fs.createReadStream(inPath).pipe(new BlockStream(salty.MAX_CHUNK, {nopad: true}))
+  try {
+    fs.statSync(outPath)
+    if (!force) {
+      throw new Error('refusing to overwrite ' + outPath + '. use --force to ignore this.')
     }
-    catch (err) {
-      if (err && err.code !== 'ENOENT') {
-        throw err
-      }
+  }
+  catch (err) {
+    if (err && err.code !== 'ENOENT') {
+      throw err
     }
-    inStream.pause()
+  }
+  inStream.pause()
 
     salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
       if (err) throw err
@@ -61,7 +66,9 @@ function (inPath, outPath, force, del) {
       })
     })
   }
+}
 
+/*
   function (infile, outfile, options) {
     if (options.armor && infile.indexOf('.pem') === -1) {
       infile += '.pem'
@@ -80,3 +87,4 @@ function (inPath, outPath, force, del) {
       options.delete
     )
   }
+*/
