@@ -7,3 +7,4 @@ function translateHeader (header, recipients) {
   }
   return header
 }
+module.exports = translateHeader

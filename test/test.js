@@ -163,7 +163,6 @@ describe('tests', function () {
         assert(!code)
         done()
       })
-      .stdout.pipe(process.stdout)
   })
   it.skip('bob decrypt', function (done) {
 

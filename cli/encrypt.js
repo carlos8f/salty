@@ -7,6 +7,7 @@ var fs = require('fs')
   , libPlaintext = require('../lib/plaintext')
   , printHeader = require('../utils/printHeader')
   , translateHeader = require('../utils/translateHeader')
+  , Progress = require('progress')
 
 module.exports = function (inFile, outFile, options) {
   var stat = fs.statSync(inFile)
@@ -39,7 +40,7 @@ module.exports = function (inFile, outFile, options) {
     }
     else withWallet()
     function withWallet (wallet) {
-      var plaintext = libPlaintext.create(inPath, recipient, options.nonce, wallet)
+      var plaintext = libPlaintext.create(inFile, recipient, options.nonce, wallet)
       var encryptor = plaintext.encrypt()
       var header
       encryptor.once('header', function (h) {
