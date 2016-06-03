@@ -40,7 +40,9 @@ module.exports = function (inFile, outFile, options) {
     }
     else withWallet()
     function withWallet (wallet) {
-      var encryptor = encrypt(inFile, recipient, options.nonce, wallet)
+      var inStat = fs.statSync(inFile)
+      var inStream = fs.createReadStream(inFile)
+      var encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet)
       var header
       encryptor.once('header', function (h) {
         header = translateHeader(h, recipients)

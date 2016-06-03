@@ -170,6 +170,7 @@ describe('tests', function () {
       .once('end', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
         var match = stdout.match(/Encrypted to (.*)/)
+        console.error('stdout', stdout)
         assert(match)
         outFile = match[1]
         done()
