@@ -4,7 +4,7 @@ var fs = require('fs')
   , constants = require('../lib/constants')
   , BlockStream = require('block-stream')
   , makeNonce = require('../utils/makeNonce')
-  , libPlaintext = require('../lib/plaintext')
+  , encrypt = require('../lib/encrypt')
   , printHeader = require('../utils/printHeader')
   , translateHeader = require('../utils/translateHeader')
   , Progress = require('progress')
@@ -40,8 +40,7 @@ module.exports = function (inFile, outFile, options) {
     }
     else withWallet()
     function withWallet (wallet) {
-      var plaintext = libPlaintext.create(inFile, recipient, options.nonce, wallet)
-      var encryptor = plaintext.encrypt()
+      var encryptor = encrypt(inFile, recipient, options.nonce, wallet)
       var header
       encryptor.once('header', function (h) {
         header = translateHeader(h, recipients)
