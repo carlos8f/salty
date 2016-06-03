@@ -8,8 +8,10 @@ var fs = require('fs')
   , printHeader = require('../utils/printHeader')
   , translateHeader = require('../utils/translateHeader')
   , Progress = require('progress')
+  , loadWallet = require('../utils/loadWallet')
 
 module.exports = function (inFile, outFile, options) {
+  var walletDir = options.parent.wallet
   var stat = fs.statSync(inFile)
   if (!outFile) {
     outFile = crypto.randomBytes(4).toString('hex') + '.salty'
@@ -26,7 +28,7 @@ module.exports = function (inFile, outFile, options) {
       throw err
     }
   }
-  loadRecipients(options.parent.wallet, function (err, recipients) {
+  loadRecipients(walletDir, function (err, recipients) {
     if (err) throw err
     var recipient = options.to ? recipients[options.to] : recipients.self
     if (!recipient) {

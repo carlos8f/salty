@@ -2,57 +2,62 @@ var fs = require('fs')
   , BlockStream = require('block-stream')
   , loadWallet = require('../utils/loadWallet')
   , loadRecipients = require('../utils/loadRecipients')
+  , printHeader = require('../utils/printHeader')
+  , decrypt = require('../lib/decrypt')
+  , Progress = require('progress')
+  , translateHeader = require('../utils/translateHeader')
 
 module.exports = function (inFile, outFile, options) {
   if (!outFile) {
     outFile = inFile.replace(/\.salty$/, '')
   }
-  var self = this
-  
+  var inStat = fs.statSync(inFile)
+  try {
+    fs.statSync(outFile)
+    if (!options.parent.force) {
+      throw new Error('Refusing to overwrite ' + outFile + '. Use --force to ignore this.')
+    }
+  }
+  catch (err) {
+    if (err && err.code !== 'ENOENT') {
+      throw err
+    }
+  }
   loadWallet(options.parent.wallet, function (err, wallet) {
     if (err) throw err
-    loadRecipients(function (err, recipients) {
-      if (err) throw err
-      var outStream = fs.createWriteStream(outPath, {mode: parseInt('0600', 8)})
-      process.on('uncaughtException', function (err) {
-        try {
-          fs.unlinkSync(outPath)
-        }
-        catch (e) {}
-        throw err
-      })
-      var 
-      var decryptor = self._decryptStream(inStream, inStat.size, wallet)
-      var header
-      decryptor.once('header', function (h) {
-        header = h
-        if (header['from-salty-id'] && recipients[header['from-salty-id']]) {
-          header['from-salty-id'] = recipients[header['from-salty-id']].toNiceString()
-        }
-        if (header['to-salty-id'] && recipients[header['to-salty-id']]) {
-          header['to-salty-id'] = recipients[header['to-salty-id']].toNiceString()
-        }
-      })
-      var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
-      var chunkCounter = 0
-      var tickCounter = 0
-      decryptor.on('data', function (chunk) {
-        tickCounter += chunk.length
-        chunkCounter++
-        if (chunkCounter % 100 === 0) {
-          bar.tick(tickCounter)
-          tickCounter = 0
-        }
-      })
-      outStream.once('finish', function () {
-        if (del) fs.unlinkSync(inPath)
-        bar.terminate()
-        self._printHeader(header)
-        console.log('decrypted to', outPath)
-      })
-      decryptor.pipe(outStream)
-      inStream.resume()
+    var inStream = fs.createReadStream(inFile)
+    var outStream = fs.createWriteStream(outFile, {mode: parseInt('0600', 8)})
+    process.on('uncaughtException', function (err) {
+      try {
+        fs.unlinkSync(outFile)
+      }
+      catch (e) {}
+      throw err
     })
+    var decryptor = decrypt(inStream, wallet, inStat.size)
+    var header
+    decryptor.once('header', function (h) {
+      header = translateHeader(h, wallet.recipients)
+    })
+    var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
+    var chunkCounter = 0
+    var tickCounter = 0
+    decryptor.on('data', function (chunk) {
+      tickCounter += chunk.length
+      chunkCounter++
+      if (chunkCounter % 100 === 0) {
+        bar.tick(tickCounter)
+        tickCounter = 0
+      }
+    })
+    outStream.once('finish', function () {
+      if (options.delete) fs.unlinkSync(inFile)
+      bar.terminate()
+      printHeader(header)
+      console.log('Decrypted to', outFile)
+    })
+    decryptor.pipe(outStream)
+    inStream.resume()
   })
 }
 

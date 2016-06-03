@@ -4,6 +4,7 @@ var fs = require('fs')
   , pempal = require('pempal')
   , libWallet = require('../lib/wallet')
   , loadPubkey = require('../utils/loadPubkey')
+  , loadRecipients = require('../utils/loadRecipients')
 
 function loadWallet (walletDir, cb) {
   fs.readFile(path.join(walletDir, 'id_salty'), {encoding: 'utf8'}, function (err, str) {
@@ -33,7 +34,11 @@ function loadWallet (walletDir, cb) {
       loadPubkey(walletDir, function (err, pubkey) {
         if (err) return cb(err)
         wallet.pubkey = pubkey
-        cb(null, wallet)
+        loadRecipients(walletDir, function (err, recipients) {
+          if (err) return cb(err)
+          wallet.recipients = recipients
+          cb(null, wallet)
+        })
       })
     }
   })

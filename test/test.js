@@ -170,7 +170,6 @@ describe('tests', function () {
       .once('end', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
         var match = stdout.match(/Encrypted to (.*)/)
-        console.error('stdout', stdout)
         assert(match)
         outFile = match[1]
         done()
@@ -178,11 +177,19 @@ describe('tests', function () {
   })
   it('bob decrypt', function (done) {
     var proc = suppose(BIN, ['decrypt', outFile, '--wallet', 'bob'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Wallet is encrypted.\nEnter passphrase: ').respond('i am bob\n')
       .end(function (code) {
         assert(!code)
         done()
       })
-      .stderr.pipe(process.stderr)
+  })
+  it('verify decrypt', function (done) {
+    fs.createReadStream(path.join(tmpDir, outFile.replace('.salty', '')))
+      .pipe(crypto.createHash('sha1'))
+      .on('data', function (data) {
+        assert.equal(data.toString('hex'), '2bce2ffc40e0d90afe577a76db5db4290c48ddf4')
+        done()
+      })
   })
   it.skip('alice encrypt for bob (sign)', function (done) {
 
