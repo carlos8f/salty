@@ -18,3 +18,7 @@ assert.deepEqual(result.body, buf)
 assert.throws(function () {
   var result2 = pempal.decode(pem, {tag: 'SUPER SECRET', passphrase: 'this is super secret NOT'})
 }, 'Bad passphrase')
+
+buf = Buffer('carlos')
+pem = pempal.encode(buf)
+console.log(pem)

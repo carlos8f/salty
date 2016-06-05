@@ -226,16 +226,43 @@ describe('tests', function () {
         done()
       })
   })
-  it.skip('alice encrypt for bob (armor)', function (done) {
-    fs.createReadStream(path.join(tmpDir, outFile.replace('.salty', '')))
-      .pipe(crypto.createHash('sha1'))
-      .on('data', function (data) {
-        assert.equal(data.toString('hex'), '2bce2ffc40e0d90afe577a76db5db4290c48ddf4')
+  var pem
+  it('alice encrypt for bob (armor)', function (done) {
+    var chunks = []
+    var proc = suppose(BIN, ['encrypt', '--to', 'bob@s8f.org', 'alice.jpg', '--sign', '--armor', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Wallet is encrypted.\nEnter passphrase: ').respond('not a blonde\n')
+      .end(function (code) {
+        assert(!code)
+      })
+      .stdout.on('data', function (chunk) {
+        chunks.push(chunk)
+      })
+      .once('end', function () {
+        var stdout = Buffer.concat(chunks).toString('utf8')
+        assert(stdout.match(/BEGIN SALTY MESSAGE/))
+        assert(stdout.match(/END SALTY MESSAGE/))
+        pem = stdout
         done()
       })
   })
-  it.skip('bob decrypt', function (done) {
-
+  it('write pem to file', function (done) {
+    fs.writeFile(path.join(tmpDir, 'ctxt.pem'), pem, done)
+  })
+  it('bob decrypt', function (done) {
+    var chunks = [], stdout
+    var proc = suppose(BIN, ['decrypt', 'ctxt.pem', '--sig', '--wallet', 'bob'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Wallet is encrypted.\nEnter passphrase: ').respond('i am bob\n')
+      .end(function (code) {
+        assert(!code)
+        assert(stdout)
+        done()
+      })
+      .stdout.on('data', function (chunk) {
+        chunks.push(chunk)
+      })
+      .once('end', function () {
+        stdout = Buffer.concat(chunks).toString('utf8')
+      })
   })
   it.skip('alice encrypt for bob (compose)', function (done) {
 

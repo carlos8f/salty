@@ -4,12 +4,13 @@ var nacl = require('tweetnacl')
   , assert = require('assert')
 
 function writeHeader (header) {
-  return Object.keys(header || {}).map(function (k) {
+  var keys = Object.keys(header || {})
+  return keys.map(function (k) {
     var line = k + ': ' + header[k] + '\n'
     return line.length > 64
       ? line.slice(0, 64) + '\n ' + line.slice(64).match(/.{1,63}/g).join('\n ') + '\n'
       : line
-  }).join('') + '\n'
+  }).join('') + (keys.length ? '\n' : '')
 }
 
 // decode PEM string -> headers + body
