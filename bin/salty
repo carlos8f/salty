@@ -47,6 +47,7 @@ program
   .command('decrypt <infile> [outfile]')
   .alias('d')
   .description('decrypt and verify a file')
+  .option('-s, --sig', 'require a signature')
   .option('-a, --armor', 'expect PEM format, output to STDOUT')
   .option('-F, --force', 'ignore warnings and do it')
   .option('-D, --delete', 'delete the salty file after verification')

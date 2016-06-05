@@ -37,6 +37,9 @@ module.exports = function (inFile, outFile, options) {
     var decryptor = decrypt(inStream, wallet, inStat.size)
     var header
     decryptor.once('header', function (h) {
+      if (options.sig && !h['signature']) {
+        throw new Error('no signature')
+      }
       header = translateHeader(h, wallet.recipients)
     })
     var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })

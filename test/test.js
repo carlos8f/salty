@@ -191,14 +191,48 @@ describe('tests', function () {
         done()
       })
   })
-  it.skip('alice encrypt for bob (sign)', function (done) {
-
+  it('alice encrypt for bob (sign)', function (done) {
+    var chunks = []
+    var proc = suppose(BIN, ['encrypt', '--to', 'bob@s8f.org', 'alice.jpg', '--sign', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Wallet is encrypted.\nEnter passphrase: ').respond('not a blonde\n')
+      .end(function (code) {
+        assert(!code)
+      })
+      .stdout.on('data', function (chunk) {
+        chunks.push(chunk)
+      })
+      .once('end', function () {
+        var stdout = Buffer.concat(chunks).toString('utf8')
+        var match = stdout.match(/Encrypted to (.*)/)
+        assert(match)
+        assert(match[1] !== outFile)
+        outFile = match[1]
+        done()
+      })
   })
-  it.skip('bob decrypt', function (done) {
-
+  it('bob decrypt', function (done) {
+    var proc = suppose(BIN, ['decrypt', outFile, '--sig', '--wallet', 'bob'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Wallet is encrypted.\nEnter passphrase: ').respond('i am bob\n')
+      .end(function (code) {
+        assert(!code)
+        done()
+      })
+  })
+  it('verify decrypt', function (done) {
+    fs.createReadStream(path.join(tmpDir, outFile.replace('.salty', '')))
+      .pipe(crypto.createHash('sha1'))
+      .on('data', function (data) {
+        assert.equal(data.toString('hex'), '2bce2ffc40e0d90afe577a76db5db4290c48ddf4')
+        done()
+      })
   })
   it.skip('alice encrypt for bob (armor)', function (done) {
-
+    fs.createReadStream(path.join(tmpDir, outFile.replace('.salty', '')))
+      .pipe(crypto.createHash('sha1'))
+      .on('data', function (data) {
+        assert.equal(data.toString('hex'), '2bce2ffc40e0d90afe577a76db5db4290c48ddf4')
+        done()
+      })
   })
   it.skip('bob decrypt', function (done) {
 
