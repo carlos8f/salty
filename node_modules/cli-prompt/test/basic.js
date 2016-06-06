@@ -13,19 +13,17 @@ describe('basic test', function () {
 
   it('calls onError for premature end', function (done) {
     var gotError = false;
+    var chunks = []
     suppose('node', [resolve(__dirname, '../examples/name.js')])
       // Output to stderr is wrapped into an Error
-      .on('error', function (err) {
-        assert.strictEqual(
-            'unable to read first name: Error: stdin has ended\n',
-            err.message
-        );
-        gotError = true;
-      })
       .end(function (code) {
         assert(!code);
-        assert(gotError);
+        var stderr = Buffer.concat(chunks).toString('utf8')
+        assert(stderr.match(/unable to read first name: Error: stdin has ended\n/))
         done();
-      });
+      })
+      .stderr.on('data', function (chunk) {
+        chunks.push(chunk)
+      })
   });
 });

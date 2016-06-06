@@ -17,13 +17,13 @@ function prompt (message, hideInput, onValue, onError) {
     if (process.stdin.setRawMode) {
       process.stdin.setRawMode(mode);
     }
-    else if (process.stdout.isTTY) {
+    else if (process.stderr.isTTY) {
       tty.setRawMode(mode);
     }
   }
   if (hideInput) setRawMode(true);
 
-  if (message !== null) process.stdout.write(message);
+  if (message !== null) process.stderr.write(message);
 
   var gotInput = false;
 
@@ -34,7 +34,7 @@ function prompt (message, hideInput, onValue, onError) {
     process.stdin.pause();
     if (hideInput) {
       setRawMode(false);
-      console.log();
+      console.error();
     }
     if (err && onError) {
       onError(err);
@@ -114,7 +114,7 @@ function multi (questions, onValue, onError) {
            var ok = q.validate.call(ret, val);
         }
         catch (e) {
-          console.log(e.message);
+          console.error(e.message);
           return retry();
         }
         if (ok === false) return retry();
