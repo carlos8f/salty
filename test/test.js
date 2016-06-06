@@ -226,10 +226,25 @@ describe('tests', function () {
         done()
       })
   })
+  it('stream fixture', function (done) {
+    request('https://gist.githubusercontent.com/carlos8f/a3fd03a48341e36bd2d1/raw/bc01eeaf1b664f79bf4de9c917ac87f94a291a76/jabberwocky.txt', {stream: true}, function (err, resp, body) {
+      assert.ifError(err)
+      body.pipe(fs.createWriteStream(path.join(tmpDir, 'jabberwocky.txt')))
+        .once('finish', done)
+    })
+  })
+  it('verify stream fixture', function (done) {
+    fs.createReadStream(path.join(tmpDir, 'jabberwocky.txt'))
+      .pipe(crypto.createHash('sha1'))
+      .on('data', function (data) {
+        assert.equal(data.toString('hex'), '24a80c902db33368958664babde4b019cdaa65f0')
+        done()
+      })
+  })
   var pem
   it('alice encrypt for bob (armor)', function (done) {
     var chunks = []
-    var proc = suppose(BIN, ['encrypt', '--to', 'bob@s8f.org', 'alice.jpg', '--sign', '--armor', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+    var proc = suppose(BIN, ['encrypt', '--to', 'bob@s8f.org', 'jabberwocky.txt', '--sign', '--armor', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
       .when('Wallet is encrypted.\nEnter passphrase: ').respond('not a blonde\n')
       .end(function (code) {
         assert(!code)
@@ -262,6 +277,11 @@ describe('tests', function () {
       })
       .once('end', function () {
         stdout = Buffer.concat(chunks).toString('utf8')
+        console.error('stdout', JSON.stringify(stdout))
+        var beginMatch = stdout.match(/^'Twas brillig, and the slithy toves/)
+        assert(beginMatch, stdout)
+        var endMatch = stdout.match(/And the mome raths outgrabe.$/)
+        assert(endMatch, stdout)
       })
   })
   it.skip('alice encrypt for bob (compose)', function (done) {

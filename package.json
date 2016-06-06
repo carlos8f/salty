@@ -5,7 +5,7 @@
   "main": "lib.js",
   "bin": "./bin/salty",
   "dependencies": {
-    "cli-prompt": "^0.5.1",
+    "cli-prompt": "^0.6.0",
     "commander": "^2.9.0",
     "fstream": "^1.0.8",
     "micro-request": "^666.0.5",

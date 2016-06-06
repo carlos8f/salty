@@ -1,5 +1,4 @@
 var fs = require('fs')
-  , BlockStream = require('block-stream')
   , loadWallet = require('../utils/loadWallet')
   , loadRecipients = require('../utils/loadRecipients')
   , printHeader = require('../utils/printHeader')
@@ -11,9 +10,6 @@ var fs = require('fs')
 
 module.exports = function (inFile, outFile, options) {
   if (inFile.match(/\.pem$/)) {
-    if (!outFile) {
-      outFile = inFile.replace(/\.pem$/, '')
-    }
     options.armor = true
   }
   var inStat = fs.statSync(inFile)
@@ -21,22 +17,22 @@ module.exports = function (inFile, outFile, options) {
     if (err) throw err
     var inStream = fs.createReadStream(inFile)
     var outStream
-    var decryptor, header
+    var decryptor, header, outChunks = []
     if (options.armor) {
-      var chunks = [], totalSize
+      var decodeChunks = [], totalSize
       var decodeStream = through(function write (buf) {
-        chunks.push(buf)
+        decodeChunks.push(buf)
       }, function end () {
-        var str = Buffer.concat(chunks).toString('utf8')
+        var str = Buffer.concat(decodeChunks).toString('utf8')
         var pem = pempal.decode(str, {tag: 'SALTY MESSAGE'})
-        var hash = require('crypto').createHash('sha1').update(pem.body).digest('hex')
-        console.error('sha1', hash)
         var tmpStream = through()
         decryptor = decrypt(tmpStream, wallet, pem.body.length)
         withDecryptor(decryptor)
         tmpStream.end(pem.body)
       })
-      outStream = process.stdout
+      outStream = through(function write (buf) {
+        outChunks.push(buf)
+      })
       inStream.pipe(decodeStream)
     }
     else {
@@ -75,12 +71,6 @@ module.exports = function (inFile, outFile, options) {
           tickCounter = 0
         }
       })
-      outStream.once('finish', function () {
-        if (options.delete) fs.unlinkSync(inFile)
-        bar.terminate()
-        printHeader(header)
-        console.log('Decrypted to', outFile)
-      })
     }
     function withDecryptor (decryptor) {
       decryptor.once('header', function (h) {
@@ -88,30 +78,20 @@ module.exports = function (inFile, outFile, options) {
           throw new Error('no signature')
         }
         header = translateHeader(h, wallet.recipients)
+        if (!options.armor) {
+          if (options.delete) fs.unlinkSync(inFile)
+          bar.terminate()
+          printHeader(header)
+          console.log('Decrypted to', outFile)
+        }
+        else {
+          printHeader(header)
+          console.error()
+          process.stdout.write(Buffer.concat(outChunks))
+        }
       })
       decryptor.pipe(outStream)
     }
     inStream.resume()
   })
 }
-
-/*
-  function (infile, outfile, options) {
-    if (options.armor && infile.indexOf('.pem') === -1) {
-      infile += '.pem'
-    }
-    else if (infile.match(/\.pem$/)) {
-      options.armor = true
-    }
-    if (options.armor) {
-      return cli.decryptMessage(infile)
-    }
-    outfile || (outfile = infile.replace(/\.salty$/, ''))
-    cli.decrypt(
-      infile,
-      outfile,
-      options.force,
-      options.delete
-    )
-  }
-*/
