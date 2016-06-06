@@ -263,13 +263,15 @@ describe('tests', function () {
   it('write pem to file', function (done) {
     fs.writeFile(path.join(tmpDir, 'ctxt.pem'), pem, done)
   })
+  var stdout
   it('bob decrypt', function (done) {
-    var chunks = [], stdout
+    var chunks = [], valid = false
     var proc = suppose(BIN, ['decrypt', 'ctxt.pem', '--sig', '--wallet', 'bob'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
       .when('Wallet is encrypted.\nEnter passphrase: ').respond('i am bob\n')
       .end(function (code) {
         assert(!code)
         assert(stdout)
+        assert(valid)
         done()
       })
       .stdout.on('data', function (chunk) {
@@ -281,16 +283,74 @@ describe('tests', function () {
         assert(beginMatch, stdout)
         var endMatch = stdout.match(/And the mome raths outgrabe\.$/)
         assert(endMatch, stdout)
+        valid = true
       })
   })
-  it.skip('alice encrypt for bob (compose)', function (done) {
-
+  var msg
+  it('alice encrypt for bob (compose)', function (done) {
+    var chunks = [], valid = false
+    msg = 'Hi,\n\nThis is my message...\n\nRegards,\Alice\n'
+    var proc = suppose(BIN, ['encrypt', '--to', 'bob@s8f.org', '--sign', '--message', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Wallet is encrypted.\nEnter passphrase: ').respond('not a blonde\n')
+      .when('\nCompose message: (CTL-D when done)\n\n> ').respond(msg + '\4')
+      .end(function (code) {
+        assert(!code)
+        assert(valid)
+        done()
+      })
+      .stdout.on('data', function (chunk) {
+        chunks.push(chunk)
+      })
+      .once('end', function () {
+        var stdout = Buffer.concat(chunks).toString('utf8')
+        assert(stdout.match(/BEGIN SALTY MESSAGE/))
+        assert(stdout.match(/END SALTY MESSAGE/))
+        pem = stdout
+        valid = true
+      })
   })
-  it.skip('bob decrypt', function (done) {
-
+  it('write pem to file', function (done) {
+    fs.writeFile(path.join(tmpDir, 'ctxt.pem'), pem, done)
   })
-  it.skip('alice sign', function (done) {
-
+  it('bob decrypt', function (done) {
+    var chunks = [], valid = false
+    var proc = suppose(BIN, ['decrypt', 'ctxt.pem', '--sig', '--wallet', 'bob'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Wallet is encrypted.\nEnter passphrase: ').respond('i am bob\n')
+      .end(function (code) {
+        assert(!code)
+        assert(stdout)
+        assert(valid)
+        done()
+      })
+      .stdout.on('data', function (chunk) {
+        chunks.push(chunk)
+      })
+      .once('end', function () {
+        stdout = Buffer.concat(chunks).toString('utf8')
+        assert.deepEqual(stdout, msg)
+        valid = true
+      })
+  })
+  it('alice sign', function (done) {
+    var chunks = [], valid = false
+    msg = 'Hi,\n\nThis is my message...\n\nRegards,\Alice\n'
+    var proc = suppose(BIN, ['sign', '--wallet', 'alice', 'alice.jpg'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .when('Wallet is encrypted.\nEnter passphrase: ').respond('not a blonde\n')
+      .end(function (code) {
+        assert(!code)
+        assert(valid)
+        done()
+      })
+      .stdout.on('data', function (chunk) {
+        chunks.push(chunk)
+      })
+      .once('end', function () {
+        var stdout = Buffer.concat(chunks).toString('utf8')
+        console.error('stdout', stdout)
+        //var match = stdout.match(/Encrypted to (.*)/)
+        //assert(match)
+        valid = true
+      })
   })
   it.skip('bob verify', function (done) {
 

@@ -23,7 +23,7 @@ module.exports = function (inFile, outFile, options) {
     try {
       fs.statSync(outFile)
       if (!options.parent.force) {
-        throw new Error('Refusing to overwrite ' + outFile + '. use --force to ignore this.')
+        throw new Error('Refusing to overwrite ' + outFile + '. Use --force to ignore this.')
       }
     }
     catch (err) {

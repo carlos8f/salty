@@ -1,49 +1,53 @@
-sign: function (inPath, outPath, force) {
-    try {
-      fs.statSync(outPath)
-      if (!force) {
-        throw new Error('refusing to overwrite ' + outPath + '. use --force to ignore this.')
-      }
-    }
-    catch (err) {
-      if (err && err.code !== 'ENOENT') {
-        throw err
-      }
-    }
-    var self = this
-    var inStat = fs.statSync(inPath)
-    var inStream = fs.createReadStream(inPath)
-    var nonce = salty.nonce(32)
-    inStream.pause()
-    salty.loadWallet(path.join(homeDir, '.salty'), function (err, wallet) {
-      if (err) throw err
-      var hashStream = crypto.createHmac('sha256', nonce)
-      var header = Object.create(null)
-      header['from-salty-id'] = wallet.pubkey.toBuffer().toString('base64')
-      header['nonce'] = nonce.toString('base64')
-      hashStream.once('data', function (hash) {
-        bar.terminate()
-        header['hash'] = hash.toString('base64')
-        var headerStr = self._writeHeader(header)
-        header['signature'] = wallet.sign(Buffer(headerStr), true).toString('base64')
-        var finalHeader = self._writeHeader(header)
-        fs.writeFile(outPath, finalHeader, function (err) {
-          if (err) throw err
-          header['from-salty-id'] = wallet.pubkey.toNiceString()
-          self._printHeader(header)
-          console.log('wrote signature to', outPath)
-        })
-      })
-      var bar = new Progress('  hashing [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
-      inStream.on('data', function (chunk) {
-        bar.tick(chunk.length)
-      })
-      inStream.pipe(hashStream)
-      inStream.resume()
-    })
-  },
+var fs = require('fs')
+  , loadWallet = require('../utils/loadWallet')
+  , makeNonce = require('../utils/makeNonce')
+  , crypto = require('crypto')
+  , Progress = require('progress')
+  , writeHeader = require('../utils/writeHeader')
+  , printHeader = require('../utils/printHeader')
 
-  function (infile, outfile, options) {
-    outfile || (outfile = infile + '.salty-sig')
-    cli.sign(infile, outfile, options.force)
+module.exports = function (inFile, outFile, options) {
+  if (!outFile) {
+    outFile = inFile + '.salty-sig'
   }
+  try {
+    fs.statSync(outFile)
+    if (!options.parent.force) {
+      throw new Error('Refusing to overwrite ' + outFile + '. Use --force to ignore this.')
+    }
+  }
+  catch (err) {
+    if (err && err.code !== 'ENOENT') {
+      throw err
+    }
+  }
+  loadWallet(options.parent.wallet, function (err, wallet) {
+    if (err) throw err
+    var inStat = fs.statSync(inFile)
+    var inStream = fs.createReadStream(inFile)
+    var bar = new Progress('  hashing [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
+    inStream.on('data', function (chunk) {
+      bar.tick(chunk.length)
+    })
+    var nonce = makeNonce(32)
+    var hashStream = crypto.createHmac('sha256', nonce)
+    var header = Object.create(null)
+    header['from-salty-id'] = wallet.pubkey.toBuffer().toString('base64')
+    header['nonce'] = nonce.toString('base64')
+    hashStream.once('data', function (hash) {
+      bar.terminate()
+      header['hash'] = hash.toString('base64')
+      var headerStr = writeHeader(header)
+      header['signature'] = wallet.sign(Buffer(headerStr), true).toString('base64')
+      var finalHeader = writeHeader(header)
+      fs.writeFile(outFile, finalHeader, function (err) {
+        if (err) throw err
+        header['from-salty-id'] = wallet.pubkey.toString(true)
+        printHeader(header)
+        console.log('Wrote signature to', outFile)
+      })
+    })
+    inStream.pipe(hashStream)
+    inStream.resume()
+  })
+}
