@@ -87,7 +87,6 @@ module.exports = function (inFile, outFile, options) {
         }
         else {
           printHeader(header)
-          console.error()
           process.stdout.write(Buffer.concat(outChunks))
         }
       })
