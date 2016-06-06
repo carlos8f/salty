@@ -81,6 +81,7 @@ module.exports = function (inFile, outFile, options) {
         if (!options.armor) {
           if (options.delete) fs.unlinkSync(inFile)
           bar.terminate()
+          console.error()
           printHeader(header)
           console.log('Decrypted to', outFile)
         }
