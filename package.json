@@ -16,10 +16,6 @@
     "through": "~2.3.1",
     "tweetnacl": "^0.14.3"
   },
-  "devDependencies": {
-    "mocha": "^2.5.3",
-    "suppose": "git+https://github.com/carlos8f/node-suppose.git"
-  },
   "scripts": {
     "test": "./node_modules/.bin/mocha --reporter spec --timeout 10s --bail"
   },
@@ -42,5 +38,35 @@
   "bugs": {
     "url": "https://github.com/carlos8f/salty/issues"
   },
-  "bundledDependencies": []
+  "bundledDependencies": [
+    "balanced-match",
+    "block-stream",
+    "brace-expansion",
+    "cli-prompt",
+    "commander",
+    "concat-map",
+    "fstream",
+    "generic-pool",
+    "glob",
+    "graceful-fs",
+    "graceful-readlink",
+    "inflight",
+    "inherits",
+    "js-scrypt",
+    "keypress",
+    "micro-request",
+    "minimatch",
+    "minimist",
+    "mkdirp",
+    "nacl-stream",
+    "once",
+    "path-is-absolute",
+    "pempal",
+    "progress",
+    "rimraf",
+    "tar",
+    "through",
+    "tweetnacl",
+    "wrappy"
+  ]
 }
