@@ -9,7 +9,7 @@ module.exports = function (input, options) {
   if (input.indexOf('http') === 0) {
     request(input, function (err, resp, body) {
       if (err) throw err
-      if (resp.status !== 200) throw new Error('non-200 status from remote: ' + resp.status)
+      if (resp.statusCode !== 200) throw new Error('non-200 status from remote: ' + resp.statusCode)
       if (Buffer.isBuffer(body)) body = body.toString('utf8')
       var pubkey = libPubkey.parse(body)
       withPubkey(pubkey)
