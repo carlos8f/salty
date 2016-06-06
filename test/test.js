@@ -346,14 +346,30 @@ describe('tests', function () {
       })
       .once('end', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
-        console.error('stdout', stdout)
-        //var match = stdout.match(/Encrypted to (.*)/)
-        //assert(match)
+        var match = stdout.match(/Wrote signature to alice\.jpg\.salty-sig/)
+        assert(match)
         valid = true
       })
   })
-  it.skip('bob verify', function (done) {
-
+  var stderr
+  it('bob verify', function (done) {
+    var chunks = [], valid = false
+    var proc = suppose(BIN, ['verify', 'alice.jpg'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+      .end(function (code) {
+        assert(!code)
+        assert(stdout)
+        assert(valid)
+        done()
+      })
+      .stderr.on('data', function (chunk) {
+        chunks.push(chunk)
+      })
+      .once('end', function () {
+        stderr = Buffer.concat(chunks).toString('utf8')
+        var match = stderr.match(/signature:\s*OK/)
+        assert(match)
+        valid = true
+      })
   })
 
   /* errors
