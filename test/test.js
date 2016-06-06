@@ -277,10 +277,9 @@ describe('tests', function () {
       })
       .once('end', function () {
         stdout = Buffer.concat(chunks).toString('utf8')
-        console.error('stdout', JSON.stringify(stdout))
         var beginMatch = stdout.match(/^'Twas brillig, and the slithy toves/)
         assert(beginMatch, stdout)
-        var endMatch = stdout.match(/And the mome raths outgrabe.$/)
+        var endMatch = stdout.match(/And the mome raths outgrabe\.$/)
         assert(endMatch, stdout)
       })
   })
