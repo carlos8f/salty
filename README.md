@@ -11,18 +11,17 @@ Commits and tags in this repo are signed with GPG key [5FBB 2F98 3862 1AFF](http
 
 ### Features
 
-- audited, bundled dependencies - no install scripts
+- general purpose CLI, lightweight library attached
+- audited, bundled dependencies - no install scripts or backdoors
 - supports anonymous-sender or signed/verified messaging
 - sharable pubkey string that can fit in a single tweet
-- does NOT use your ssh keys, pgp keys, or anything RSA.
-- encrypt public key is always ephemeral, so no leaked metadata
+- does NOT use your ssh keys, pgp keys, or anything RSA
+- encrypt public key is always ephemeral - does NOT leak metadata
 - sender identity is deniable, unless they explicitly commit to sign the message
-- file length is hidden with padding
-- fast, streaming encryption over large (multi-GB) files
+- file length hidden with padding
 - public signing/verifying with detached signatures
 - binary or "ascii armor" PEM output
-- AES-256 protected PEM format for wallets
-- comparable to `gpg` in performance
+- import/export your wallet folder - PEM encoded and secretboxed with Scrypt KDF
 - MIT-licensed
 
 ## Install (Mac OSX)
@@ -60,11 +59,11 @@ Example (wallets are stored as encrypted PEM on disk)
 ```
 -----BEGIN SALTY WALLET-----
 Proc-Type: 4,ENCRYPTED
-DEK-Info: AES-256-CBC,0CFAE3D8E9C0126399949B42F1F0660A
+DEK-Info: NACL-SCRYPT,IP3NRMw15AGYyU56xwYPVJFa4Xx0aock
 
-iHJYVUldHlQhBRAIys+Zf/kSymKFoc1KT5dH6izm1nXcUI97eH93i4+Lx5dzj+Sd
-QN3J5NwusWjGyMk4O/FiBVygxF+z6tOmu2A/mGEXZlgw91GmRwM+YlEd5vabxg5I
-mlgYjrqP4ffJ8/I09e2RGg==
+OjCNhUvjNml3bebBVsIBpTBdvWSRkUG6vVZkdpzFZf9Ak/Bh0ghaXsEhuAiElEMy
+2ghCEF5oQVO3dAWdflcvuVH3CSXlPlBfXWr6Y0EEOST3jYwaRS8Qfa2786YNBYCm
+NBm4au6wbuVp8dL41jhLeQ==
 -----END SALTY WALLET-----
 ```
 
@@ -82,7 +81,7 @@ Designed to be sharable, human-readable, and unique.
 Example:
 
 ```
-salty-id oU3lbcpdHo81Eo8SifwoHg5CEEZ5q-Rb0_zMWpJU-GWlr9lIjILqv5RneVsMo3azdEJ8UYTmz86dz0Cx5ciIsw "Carlos Rodriguez" <carlos@s8f.org>
+salty-id jbMGsmaXG7bJLZjhnn_i-9GyQtEVBBTL8JwdpBgKC0y6wvvEbesSYp4vOkjOEt5IZtt0pdrXI2ARZKkAIHUnhg "Carlos Rodriguez" <carlos@s8f.org>
 ```
 
 ### Salty file
@@ -134,14 +133,35 @@ to-salty-id:   oU3lbcpdHo81Eo8SifwoHg5CEEZ5q-Rb0_zMWpJU-GWlr9lIjILqv5RneVsMo3azd
 signature:     vtQQktMrFEszVSeVMgqN22EPOCMjZQZvA2TZkujcE7BtXAv9Lf7k1P4HE1D/c/XoIPvoQ8LiHJEgumWlgGuNDg==
 ```
 
+### Signature
+
+Always contains the signer's public keys, a sha256 HMAC to authenticate the file, keyed with a 32-byte random nonce, and a signature.
+
+```
+from-salty-id: base64(encryptPk (32) + verifyPk (32))
+hash: base64( sha256_hmac( nonce ) of file )
+nonce: base64( randomNonce (32) )
+signature: base64( detached sig of previous headers )
+```
+
+Example:
+
+```
+from-salty-id: jbMGsmaXG7bJLZjhnn/i+9GyQtEVBBTL8JwdpBgKC0y6wvvEbesSYp4vOkjOEt5IZtt0pdrXI2ARZKkAIHUnhg==
+nonce: rKtBFyFXZbLrmCzUsxVKlqPkYinmOWqvJSLN3Oyhejg=
+hash: gXkCnKr04zD8rTzs++17z9LWGoNgWceSo2XQXQJOFSQ=
+signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqcK64BpnzphRS5UpYDg==
+```
+
 ## Usage
 
 ```
-  Usage: salty [command]
+  Usage: salty [options] [command]
+
 
   Commands:
 
-    init                                    initialize a wallet at ~/.salty
+    init                                    initialize or update a wallet
     id|pubkey                               output your shareable pubkey string
     import|i <pubkey|url|file>              import a pubkey
     ls|l                                    list imported keys
@@ -151,11 +171,14 @@ signature:     vtQQktMrFEszVSeVMgqN22EPOCMjZQZvA2TZkujcE7BtXAv9Lf7k1P4HE1D/c/XoI
     verify|v <insig> [infile]               verify a ".salty-sig" signature with the original file
     save [indir] [outfile]                  save an encrypted backup of your wallet
     restore [infile] [outdir]               restore your wallet from a backup
+    *
 
   Options:
 
-    -h, --help     output usage information
-    -V, --version  output the version number
+    -h, --help          output usage information
+    -V, --version       output the version number
+    -w, --wallet <dir>  wallet location (default: ~/.salty)
+    -F, --force         do it anyway
 ```
 
 - - -
