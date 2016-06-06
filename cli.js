@@ -8,5 +8,5 @@ module.exports = {
   restore: require('./cli/restore'),
   save: require('./cli/save'),
   sign: require('./cli/sign'),
-  //verify: require('./cli/verify')
+  verify: require('./cli/verify')
 }

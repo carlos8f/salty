@@ -1,15 +1,9 @@
 module.exports = {
-  MAX_CHUNK: 655350,
-  EPH_LENGTH: 80,
-
-  //ciphertext: require('./lib/ciphertext'),
-  //ephemeral: require('./lib/ephemeral'),
-  //header: require('./lib/header'),
-  //plaintext: require('./lib/plaintext'),
+  constants: require('./lib/constants'),
+  decrypt: require('./lib/decrypt'),
+  encrypt: require('./lib/encrypt'),
+  ephemeral: require('./lib/ephemeral'),
+  header: require('./lib/header'),
   pubkey: require('./lib/pubkey'),
-  //recipients: require('./lib/recipients'),
-  wallet: require('./lib/wallet'),
-
-  a: require('./utils/a'),
-  makeNonce: require('./utils/makeNonce'),
+  wallet: require('./lib/wallet')
 }
