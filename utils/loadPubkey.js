@@ -4,6 +4,9 @@ var fs = require('fs')
 
 function loadPubkey (walletDir, cb) {
   fs.readFile(path.join(walletDir, 'id_salty.pub'), {encoding: 'utf8'}, function (err, str) {
+    if (err && err.code === 'ENOENT') {
+      return cb(null, null)
+    }
     if (err) return cb(err)
     try {
       var pubkey = libPubkey.parse(str)

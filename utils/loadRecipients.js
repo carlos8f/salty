@@ -13,8 +13,10 @@ function loadRecipients (walletDir, cb) {
     loadPubkey(walletDir, function (err, pubkey) {
       if (err) return cb(err)
       var recipients = Object.create(null)
-      recipients['self'] = pubkey
-      lines.push(pubkey.toString())
+      if (pubkey) {
+        recipients['self'] = pubkey
+        lines.push(pubkey.toString())
+      }
       lines.forEach(function (line) {
         try {
           var pubkey = libPubkey.parse(line.trim())
