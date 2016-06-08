@@ -11,10 +11,11 @@ var fs = require('fs')
   , pempal = require('pempal')
   , through = require('through')
   , prompt = require('cli-prompt')
+  , createGist = require('../utils/createGist')
 
 module.exports = function (inFile, outFile, options) {
   var walletDir = options.parent.wallet
-  if (options.message) options.armor = true
+  if (options.message || options.gist) options.armor = true
   if (!options.armor) {
     var stat = fs.statSync(inFile)
     if (!outFile) {
@@ -86,7 +87,13 @@ module.exports = function (inFile, outFile, options) {
           }, function end () {
             var buf = Buffer.concat(chunks)
             var str = pempal.encode(buf, {tag: 'SALTY MESSAGE'})
-            console.log(str)
+            if (options.gist) {
+              createGist(str, function (err, gist) {
+                if (err) throw err
+                console.log(gist.html_url)
+              })
+            }
+            else console.log(str)
           })
         }
         else {
