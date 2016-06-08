@@ -31,7 +31,7 @@ program
   .action(cli.ls)
 
 program
-  .command('encrypt [infile] [outfile]')
+  .command('encrypt [infile|indir] [outfile]')
   .alias('e')
   .description('encrypt a file')
   .option('-t, --to <email>', 'email address to encrypt for. (must be imported first. default: self)')

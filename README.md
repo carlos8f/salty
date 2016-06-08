@@ -181,6 +181,10 @@ signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqc
     -F, --force         do it anyway
 ```
 
+### TODO
+
+- Custom headers, repeatable -H param
+
 - - -
 
 ### License: MIT

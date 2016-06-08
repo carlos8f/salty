@@ -10,16 +10,16 @@ function fetchGist (input, cb) {
   var inMatch = input.match(re)
   if (!inMatch) return cb(new Error('invalid gist spec'))
   var uri = 'https://api.github.com/gists/' + inMatch[2]
-  request('https://api.github.com/gists/' + inMatch[2], {headers: headers}, function (err, resp, body) {
+  request('https://api.github.com/gists/' + inMatch[2], {headers: headers}, function (err, resp, gist) {
     if (err) return cb(err)
     if (resp.statusCode !== 200) {
       return cb(new Error('non-200 status from github: ' + resp.statusCode))
     }
-    if (!body.files['salty.pem']) return cb(new Error('no salty.pem found in gist'))
-    request(body.files['salty.pem'].raw_url, function (err, resp, body) {
+    if (!gist.files['salty.pem']) return cb(new Error('no salty.pem found in gist'))
+    request(gist.files['salty.pem'].raw_url, function (err, resp, body) {
       if (err) return cb(err)
       if (resp.statusCode !== 200) return cb(new Error('non-200 status from github: ' + resp.statusCode))
-      cb(null, body)
+      cb(null, body, gist)
     })
   })
 }

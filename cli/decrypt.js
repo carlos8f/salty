@@ -10,19 +10,26 @@ var fs = require('fs')
   , request = require('micro-request')
   , assert = require('assert')
   , fetchGist = require('../utils/fetchGist')
+  , tar = require('tar')
+  , zlib = require('zlib')
+  , path = require('path')
+  , tmpDir = require('os').tmpDir()
+  , crypto = require('crypto')
+  , rimraf = require('rimraf')
 
 module.exports = function (inFile, outFile, options) {
   if (inFile.match(/\.pem$/) || options.gist) {
     options.armor = true
   }
+  if (inFile.indexOf('https://gist') === 0) options.gist = true
   loadWallet(options.parent.wallet, function (err, wallet) {
     if (err) throw err
     if (options.gist) {
       options.armor = true
-      fetchGist(inFile, function (err, str) {
+      fetchGist(inFile, function (err, str, gist) {
         if (err) throw err
         var inStream = through()
-        withInstream(inStream)
+        withInstream(inStream, gist)
         setImmediate(function () {
           inStream.end(Buffer(str))
         })
@@ -33,35 +40,22 @@ module.exports = function (inFile, outFile, options) {
       var inStream = fs.createReadStream(inFile)
       withInstream(inStream)
     }
-    function withInstream (inStream) {
+    function withInstream (inStream, gist) {
       var outStream
       var decryptor, header, outChunks = []
-      if (options.armor) {
-        var decodeChunks = [], totalSize
-        var decodeStream = through(function write (buf) {
-          decodeChunks.push(buf)
-        }, function end () {
-          var str = Buffer.concat(decodeChunks).toString('utf8')
-          var pem = pempal.decode(str, {tag: 'SALTY MESSAGE'})
-          var tmpStream = through()
-          decryptor = decrypt(tmpStream, wallet, pem.body.length)
-          withDecryptor(decryptor)
-          tmpStream.end(pem.body)
-        })
-        outStream = through(function write (buf) {
-          outChunks.push(buf)
-        })
-        inStream.pipe(decodeStream)
-      }
-      else {
+      function withOutfile () {
+        if (options.gist && !outFile) {
+          outFile = gist.id
+        }
         if (!outFile) {
-          outFile = inFile.replace(/\.salty$/, '')
+          outFile = inFile.replace(/\.(salty|pem)$/, '')
         }
         try {
           fs.statSync(outFile)
           if (!options.parent.force) {
             throw new Error('Refusing to overwrite ' + outFile + '. Use --force to ignore this.')
           }
+          rimraf.sync(outFile)
         }
         catch (err) {
           if (err && err.code !== 'ENOENT') {
@@ -69,12 +63,44 @@ module.exports = function (inFile, outFile, options) {
           }
         }
         process.on('uncaughtException', function (err) {
+          console.error('uncaught', err.stack)
           try {
-            fs.unlinkSync(outFile)
+            rimraf.sync(outFile)
           }
           catch (e) {}
           throw err
         })
+      }
+      if (options.armor) {
+        var decodeChunks = [], totalSize
+        var decodeStream = through(function write (buf) {
+          decodeChunks.push(buf)
+        }, function end () {
+          var str = Buffer.concat(decodeChunks).toString('utf8')
+          try {
+            var pem = pempal.decode(str, {tag: 'SALTY MESSAGE'})
+          }
+          catch (e) {
+            throw new Error('invalid PEM')
+          }
+          var tmpStream = through()
+          decryptor = decrypt(tmpStream, wallet, pem.body.length)
+          withDecryptor(decryptor)
+          tmpStream.end(pem.body)
+        })
+        if (options.gist || outFile) {
+          withOutfile()
+          outStream = fs.createWriteStream(outFile, {mode: parseInt('0600', 8)})
+        }
+        else {
+          outStream = through(function write (buf) {
+            outChunks.push(buf)
+          })
+        }
+        inStream.pipe(decodeStream)
+      }
+      else {
+        withOutfile()
         outStream = fs.createWriteStream(outFile, {mode: parseInt('0600', 8)})
         decryptor = decrypt(inStream, wallet, inStat.size)
         withDecryptor(decryptor)
@@ -96,16 +122,51 @@ module.exports = function (inFile, outFile, options) {
             throw new Error('no signature')
           }
           header = translateHeader(h, wallet.recipients)
-          if (!options.armor) {
-            if (options.delete) fs.unlinkSync(inFile)
-            bar.terminate()
-            console.error()
-            printHeader(header)
-            console.log('Decrypted to', outFile)
+          if (h['content-encoding'] === 'x-gzip' && h['content-type'] === 'application/x-tar') {
+            var tmpPath = path.join(tmpDir, crypto.randomBytes(16).toString('hex'))
+            var extractStream = tar.Extract({path: tmpPath, mode: parseInt('0700', 8)})
+            var gunzipStream = zlib.createGunzip()
+            extractStream.once('end', function () {
+              rimraf.sync(outFile)
+              fs.renameSync(tmpPath, outFile)
+              printHeader(header)
+              console.log('Restored to', outFile)
+            })
+            gunzipStream.pipe(extractStream)
+            var readStream
+            if (!outFile) {
+              readStream = through()
+              setImmediate(function () {
+                readStream.end(Buffer.concat(outChunks))
+              })
+              withOutfile()
+            }
+            else {
+              readStream = fs.createReadStream(outFile)
+            }
+            readStream.pipe(gunzipStream)
           }
           else {
-            printHeader(header)
-            process.stdout.write(Buffer.concat(outChunks))
+            if (!options.armor) {
+              if (options.delete) fs.unlinkSync(inFile)
+              bar.terminate()
+              console.error()
+              printHeader(header)
+              console.log('Decrypted to', outFile)
+            }
+            else {
+              printHeader(header)
+              if (outFile) {
+                var readStream = fs.createReadStream(outFile)
+                readStream.once('end', function () {
+                  rimraf.sync(outFile)
+                })
+                readStream.pipe(process.stdout)
+              }
+              else {
+                process.stdout.write(Buffer.concat(outChunks))
+              }
+            }
           }
         })
         decryptor.pipe(outStream)

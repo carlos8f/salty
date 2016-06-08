@@ -14,13 +14,14 @@ function loadWallet (walletDir, cb) {
       return cb(err)
     }
     if (err) return cb(err)
-    if (str.indexOf('ENCRYPTED') !== -1) {
-      process.stderr.write('Wallet is encrypted.\n')
-      process.stderr.write('Enter passphrase: ')
-      return prompt.password(null, function (passphrase) {
-        console.error()
+    function ask () {
+      return prompt.password('Enter passphrase: ', function (passphrase) {
         withPrompt(passphrase)
       })
+    }
+    if (str.indexOf('ENCRYPTED') !== -1) {
+      console.error('Wallet is encrypted.')
+      ask()
     }
     else withPrompt(null)
     function withPrompt (passphrase) {
@@ -29,6 +30,10 @@ function loadWallet (walletDir, cb) {
         var wallet = libWallet.parse(pem.body)
       }
       catch (e) {
+        if (e.message === 'Bad passphrase' && passphrase) {
+          console.error('Bad passphrase!')
+          return ask()
+        }
         return cb(e)
       }
       loadPubkey(walletDir, function (err, pubkey) {

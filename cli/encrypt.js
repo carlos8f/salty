@@ -12,6 +12,11 @@ var fs = require('fs')
   , through = require('through')
   , prompt = require('cli-prompt')
   , createGist = require('../utils/createGist')
+  , tar = require('tar')
+  , zlib = require('zlib')
+  , fstream = require('fstream')
+  , tmpDir = require('os').tmpDir()
+  , path = require('path')
 
 module.exports = function (inFile, outFile, options) {
   var walletDir = options.parent.wallet
@@ -71,9 +76,41 @@ module.exports = function (inFile, outFile, options) {
       }
       else {
         var inStat = fs.statSync(inFile)
-        var inStream = fs.createReadStream(inFile)
-        var encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor)
-        withEncryptor(encryptor)
+        var headers = {}, inStream, encryptor
+        if (inStat.isDirectory()) {
+          var tarStream = tar.Pack({fromBase: true})
+          gzipStream = tarStream.pipe(zlib.createGzip())
+          var tmpFile = path.join(tmpDir, crypto.randomBytes(16).toString('hex'))
+          var tmpStream = fs.createWriteStream(tmpFile, {mode: parseInt('0600', 8)})
+          process.on('uncaughtException', function (err) {
+            try {
+              fs.unlinkSync(tmpFile)
+            }
+            catch (e) {}
+            throw err
+          })
+          tmpStream.once('finish', function () {
+            inStat = fs.statSync(tmpFile)
+            inStream = fs.createReadStream(tmpFile)
+            encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor, headers)
+            withEncryptor(encryptor)
+          })
+          headers['content-type'] = 'application/x-tar'
+          headers['content-encoding'] = 'x-gzip'
+          var reader = fstream.Reader({
+            path: inFile,
+            type: 'Directory',
+            sort: 'alpha',
+            mode: parseInt('0700', 8)
+          })
+          gzipStream.pipe(tmpStream)
+          reader.pipe(tarStream)
+        }
+        else {
+          inStream = fs.createReadStream(inFile)
+          encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor, headers)
+          withEncryptor(encryptor)
+        }
       }
       var header, outStream
       function withEncryptor (encryptor) {
