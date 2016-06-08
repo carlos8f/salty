@@ -22,6 +22,8 @@ Commits and tags in this repo are signed with GPG key [5FBB 2F98 3862 1AFF](http
 - public signing/verifying with detached signatures
 - binary or "ascii armor" PEM output
 - import/export your wallet folder - PEM encoded and secretboxed with Scrypt KDF
+- (new in 3.1) can use anonymous private [Github gists](https://gist.github.com/) to remotely store salty messages
+- (new in 3.1) full tar/gz support for encrypting/decrypting directories (supports symmetric or asymmetric cipher)
 - MIT-licensed
 
 ## Install (Mac OSX)
@@ -161,17 +163,16 @@ signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqc
 
   Commands:
 
-    init                                    initialize or update a wallet
-    id|pubkey                               output your shareable pubkey string
-    import|i <pubkey|url|file>              import a pubkey
-    ls|l                                    list imported keys
-    encrypt|e [options] [infile] [outfile]  encrypt a file
-    decrypt|d [options] <infile> [outfile]  decrypt and verify a file
-    sign|s [options] <infile> [outfile]     create a ".salty-sig" signature file
-    verify|v <insig> [infile]               verify a ".salty-sig" signature with the original file
-    save [indir] [outfile]                  save an encrypted backup of your wallet
-    restore [infile] [outdir]               restore your wallet from a backup
-    *
+    init                                          initialize or update a wallet
+    id|pubkey                                     output your shareable pubkey string
+    import|i <pubkey|url|file>                    import a pubkey
+    ls|l                                          list imported keys
+    encrypt|e [options] [infile|indir] [outfile]  encrypt a file
+    decrypt|d [options] <infile|gist> [outfile]   decrypt and verify a file
+    sign|s [options] <infile> [outfile]           create a ".salty-sig" signature file
+    verify|v <insig> [infile]                     verify a ".salty-sig" signature with the original file
+    save [indir] [outfile]                        save an encrypted backup of your wallet
+    restore [infile] [outdir]                     restore your wallet from a backup
 
   Options:
 
@@ -180,6 +181,50 @@ signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqc
     -w, --wallet <dir>  wallet location (default: ~/.salty)
     -F, --force         do it anyway
 ```
+
+### salty encrypt
+
+```
+  Usage: encrypt|e [options] [infile|indir] [outfile]
+
+  encrypt a file
+
+  Options:
+
+    -h, --help           output usage information
+    -t, --to <email>     email address to encrypt for. (must be imported first. default: self)
+    -n, --nonce <nonce>  use a specific nonce (base64-encoded)
+    -m, --message        compose a message instead of using [infile] (implies -a)
+    -s, --sign           sign the message to reveal/prove our identity
+    -a, --armor          output as a PEM to STDOUT
+    -g, --gist           upload encrypted result as a gist
+    -F, --force          ignore warnings and do it
+    -D, --delete         delete the original file after encryption
+```
+
+### salty decrypt
+
+```
+  Usage: decrypt|d [options] <infile|gist> [outfile]
+
+  decrypt and verify a file
+
+  Options:
+
+    -h, --help    output usage information
+    -s, --sig     require a signature
+    -a, --armor   expect PEM format, output to STDOUT
+    -g, --gist    download the encrypted input from a gist
+    -F, --force   ignore warnings and do it
+    -D, --delete  delete the salty file after verification
+```
+
+## Log
+
+### release v3.1.0
+
+- Added anonymous gist support
+- Added tar/gz support for encrypting directories
 
 ### TODO
 
