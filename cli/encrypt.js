@@ -70,7 +70,7 @@ module.exports = function (inFile, outFile, options) {
         function withMessage (m) {
           var mStream = through()
           var encryptor = encrypt(mStream, recipient, nonce, m.length, wallet, true)
-          withEncryptor(encryptor)
+          withEncryptor(encryptor, m.length)
           mStream.end(m)
         }
       }
@@ -89,11 +89,23 @@ module.exports = function (inFile, outFile, options) {
             catch (e) {}
             throw err
           })
+          function onExit () {
+            try {
+              fs.unlinkSync(tmpFile)
+            }
+            catch (e) {}
+            process.exit(1)
+          }
+          process.once('SIGINT', onExit)
+          process.once('SIGTERM', onExit)
           tmpStream.once('finish', function () {
             inStat = fs.statSync(tmpFile)
             inStream = fs.createReadStream(tmpFile)
+            inStream.once('end', function () {
+              fs.unlinkSync(tmpFile)
+            })
             encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor, headers)
-            withEncryptor(encryptor)
+            withEncryptor(encryptor, inStat.size)
           })
           headers['content-type'] = 'application/x-tar'
           headers['content-encoding'] = 'x-gzip'
@@ -103,17 +115,27 @@ module.exports = function (inFile, outFile, options) {
             sort: 'alpha',
             mode: parseInt('0700', 8)
           })
+          var bar
+          reader.once('entries', function (entries) {
+            bar = new Progress('  packing [:bar] :percent ETA: :etas', { total: entries.length, width: 80 })
+          })
+          reader.on('entry', function (entry) {
+            bar.tick()
+          })
+          reader.on('end', function () {
+            bar.terminate()
+          })
           gzipStream.pipe(tmpStream)
           reader.pipe(tarStream)
         }
         else {
           inStream = fs.createReadStream(inFile)
           encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor, headers)
-          withEncryptor(encryptor)
+          withEncryptor(encryptor, inStat.size)
         }
       }
       var header, outStream
-      function withEncryptor (encryptor) {
+      function withEncryptor (encryptor, totalSize) {
         encryptor.once('header', function (h) {
           header = translateHeader(h, recipients)
         })
@@ -147,7 +169,16 @@ module.exports = function (inFile, outFile, options) {
             catch (e) {}
             throw err
           })
-          var bar = new Progress('  encrypting [:bar] :percent ETA: :etas', { total: stat.size, width: 80 })
+          function onExit () {
+            try {
+              fs.unlinkSync(outFile)
+            }
+            catch (e) {}
+            process.exit(1)
+          }
+          process.once('SIGINT', onExit)
+          process.once('SIGTERM', onExit)
+          var bar = new Progress('  encrypting [:bar] :percent ETA: :etas', { total: totalSize, width: 80 })
           var chunkCounter = 0
           var tickCounter = 0
           encryptor.on('data', function (chunk) {
