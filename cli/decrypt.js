@@ -175,7 +175,7 @@ module.exports = function (inFile, outFile, options) {
           }
           else {
             if (!options.armor) {
-              bar.terminate()
+              if (bar) bar.terminate()
               console.error()
               printHeader(header)
               console.log('Decrypted to', outFile)
