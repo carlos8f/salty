@@ -11,6 +11,7 @@ Commits and tags in this repo are signed with GPG key [5FBB 2F98 3862 1AFF](http
 
 ### Features
 
+- NO [3rd parties](https://peerio.com/pricing.html), NO [p2p network](https://en.wikipedia.org/wiki/PRISM_(surveillance_program)), NO [browser js](https://www.nccgroup.trust/us/about-us/newsroom-and-events/blog/2011/august/javascript-cryptography-considered-harmful/), NO [package managers](https://docs.npmjs.com/misc/scripts), NO [exotic/compiled deps](https://www.openssl.org/news/vulnerabilities.html), and NO [shady corporations](https://github.com/VirgilSecurity). PERIOD.
 - general purpose CLI, lightweight library attached
 - audited, bundled dependencies - no install scripts or backdoors
 - supports anonymous-sender or signed/verified messaging
@@ -41,6 +42,11 @@ Install first: [nodejs](https://nodejs.org/)
 $ git clone https://github.com/carlos8f/salty.git
 $ sudo ln -s `pwd`/salty/salty /usr/local/bin/salty
 ```
+
+## Useful links
+
+- [S8F Console: How to use Salty](https://s8f.org/1465282150/) - Basic demonstration of the Salty CLI
+- [Salty: PGP Evolved](https://s8f.org/1465262642/) - How Salty improves on the PGP model
 
 ## Format
 
