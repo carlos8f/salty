@@ -11,10 +11,16 @@ var fs = require('fs')
   , pempal = require('pempal')
   , through = require('through')
   , prompt = require('cli-prompt')
+  , createGist = require('../utils/createGist')
+  , tar = require('tar')
+  , zlib = require('zlib')
+  , fstream = require('fstream')
+  , tmpDir = require('os').tmpDir()
+  , path = require('path')
 
 module.exports = function (inFile, outFile, options) {
   var walletDir = options.parent.wallet
-  if (options.message) options.armor = true
+  if (options.message || options.gist) options.armor = true
   if (!options.armor) {
     var stat = fs.statSync(inFile)
     if (!outFile) {
@@ -64,18 +70,72 @@ module.exports = function (inFile, outFile, options) {
         function withMessage (m) {
           var mStream = through()
           var encryptor = encrypt(mStream, recipient, nonce, m.length, wallet, true)
-          withEncryptor(encryptor)
+          withEncryptor(encryptor, m.length)
           mStream.end(m)
         }
       }
       else {
         var inStat = fs.statSync(inFile)
-        var inStream = fs.createReadStream(inFile)
-        var encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor)
-        withEncryptor(encryptor)
+        var headers = {}, inStream, encryptor
+        if (inStat.isDirectory()) {
+          var tarStream = tar.Pack({fromBase: true})
+          gzipStream = tarStream.pipe(zlib.createGzip())
+          var tmpFile = path.join(tmpDir, crypto.randomBytes(16).toString('hex'))
+          var tmpStream = fs.createWriteStream(tmpFile, {mode: parseInt('0600', 8)})
+          process.on('uncaughtException', function (err) {
+            try {
+              fs.unlinkSync(tmpFile)
+            }
+            catch (e) {}
+            throw err
+          })
+          function onExit () {
+            try {
+              fs.unlinkSync(tmpFile)
+            }
+            catch (e) {}
+            process.exit(1)
+          }
+          process.once('SIGINT', onExit)
+          process.once('SIGTERM', onExit)
+          tmpStream.once('finish', function () {
+            inStat = fs.statSync(tmpFile)
+            inStream = fs.createReadStream(tmpFile)
+            inStream.once('end', function () {
+              fs.unlinkSync(tmpFile)
+            })
+            encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor, headers)
+            withEncryptor(encryptor, inStat.size)
+          })
+          headers['content-type'] = 'application/x-tar'
+          headers['content-encoding'] = 'x-gzip'
+          var reader = fstream.Reader({
+            path: inFile,
+            type: 'Directory',
+            sort: 'alpha',
+            mode: parseInt('0700', 8)
+          })
+          var bar
+          reader.once('entries', function (entries) {
+            bar = new Progress('  packing [:bar] :percent ETA: :etas', { total: entries.length, width: 80 })
+          })
+          reader.on('entry', function (entry) {
+            bar.tick()
+          })
+          reader.on('end', function () {
+            bar.terminate()
+          })
+          gzipStream.pipe(tmpStream)
+          reader.pipe(tarStream)
+        }
+        else {
+          inStream = fs.createReadStream(inFile)
+          encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor, headers)
+          withEncryptor(encryptor, inStat.size)
+        }
       }
       var header, outStream
-      function withEncryptor (encryptor) {
+      function withEncryptor (encryptor, totalSize) {
         encryptor.once('header', function (h) {
           header = translateHeader(h, recipients)
         })
@@ -86,7 +146,13 @@ module.exports = function (inFile, outFile, options) {
           }, function end () {
             var buf = Buffer.concat(chunks)
             var str = pempal.encode(buf, {tag: 'SALTY MESSAGE'})
-            console.log(str)
+            if (options.gist) {
+              createGist(str, function (err, gist) {
+                if (err) throw err
+                console.log(gist.html_url)
+              })
+            }
+            else console.log(str)
           })
         }
         else {
@@ -103,7 +169,16 @@ module.exports = function (inFile, outFile, options) {
             catch (e) {}
             throw err
           })
-          var bar = new Progress('  encrypting [:bar] :percent ETA: :etas', { total: stat.size, width: 80 })
+          function onExit () {
+            try {
+              fs.unlinkSync(outFile)
+            }
+            catch (e) {}
+            process.exit(1)
+          }
+          process.once('SIGINT', onExit)
+          process.once('SIGTERM', onExit)
+          var bar = new Progress('  encrypting [:bar] :percent ETA: :etas', { total: totalSize, width: 80 })
           var chunkCounter = 0
           var tickCounter = 0
           encryptor.on('data', function (chunk) {
