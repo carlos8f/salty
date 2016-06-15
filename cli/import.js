@@ -46,6 +46,8 @@ module.exports = function (input, options) {
       pubkey.email = info.email
       fs.writeFileSync(outPath, pubkey.toString() + '\n', {mode: parseInt('0600', 8), flag: 'a+'})
       console.log('Imported OK: ' + pubkey.toString(true))
+    }, function (err) {
+      throw err
     })
   }
 }

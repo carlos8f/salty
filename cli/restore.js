@@ -23,6 +23,8 @@ module.exports = function (inPath, outDir, options) {
       prompt.password('Enter passphrase: ', function (passphrase) {
         var parsedPem = pempal.decode(str, {tag: 'SALTY WALLET', passphrase: passphrase})
         withParsed(parsedPem.body)
+      }, function (err) {
+        throw err
       })
     }
     else {

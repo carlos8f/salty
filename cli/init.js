@@ -33,6 +33,8 @@ module.exports = function (options) {
     else {
       console.error('Cancelled.')
     }
+  }, function (err) {
+    throw err
   })
 
   function doInit (wallet) {
@@ -82,6 +84,8 @@ module.exports = function (options) {
         console.log('Hint: Share this string with your peers so they can\n\tsalty import \'<pubkey>\'')
         console.log('...allowing them to `salty encrypt` messages to you!\n\n\t' + wallet.pubkey.toString() + '\n')
       }
+    }, function (err) {
+      throw err
     })
   }
 }

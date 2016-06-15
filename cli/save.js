@@ -58,6 +58,8 @@ module.exports = function (inDir, outPath, options) {
         mode: parseInt('0700', 8)
       })
       reader.pipe(tarStream)
+    }, function (err) {
+      throw err
     })
   }
 }

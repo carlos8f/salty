@@ -82,10 +82,12 @@ program
   .command('*')
   .action(function (infile) {
     program.outputHelp()
+    process.exit(1)
   })
 
 program.parse(process.argv)
 
 if (!program.rawArgs[2]) {
   program.outputHelp()
+  process.exit(1)
 }
