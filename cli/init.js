@@ -14,7 +14,10 @@ module.exports = function (options) {
       if (e && e.code === 'ENOENT') {
         process.stderr.write('Creating wallet...\n')
       }
-      fs.mkdirSync(options.parent.wallet, parseInt('0700', 8))
+      try {
+        fs.mkdirSync(options.parent.wallet, parseInt('0700', 8))
+      }
+      catch (e) {}
       return doInit()
     }
     throw e
