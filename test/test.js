@@ -71,7 +71,7 @@ describe('tests', function () {
       })
       .once('end', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
-        var match = stdout.match(/salty\-id ([a-zA-Z0-9-\_]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/)
+        var match = stdout.match(/([a-zA-Z0-9]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/)
         assert(match)
         alice_pubkey = match[0]
         done()
@@ -102,7 +102,7 @@ describe('tests', function () {
       })
       .once('end', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
-        var match = stdout.match(/salty\-id ([a-zA-Z0-9-\_]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/)
+        var match = stdout.match(/([a-zA-Z0-9]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/)
         assert(match)
         bob_pubkey = match[0]
         done()
@@ -129,7 +129,7 @@ describe('tests', function () {
       })
       .once('end', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
-        var match = stdout.match(/salty\-id ([a-zA-Z0-9-\_]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/g)
+        var match = stdout.match(/([a-zA-Z0-9]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/g)
         assert.equal(match.length, 1)
         assert.equal(match[0], bob_pubkey)
         done()
@@ -354,7 +354,7 @@ describe('tests', function () {
   var stderr
   it('bob verify', function (done) {
     var chunks = [], valid = false
-    var proc = suppose(BIN, ['verify', 'alice.jpg'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+    var proc = suppose(BIN, ['verify', '--wallet', 'bob', 'alice.jpg'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
       .end(function (code) {
         assert(!code)
         assert(stdout)
@@ -364,7 +364,7 @@ describe('tests', function () {
       .stderr.on('data', function (chunk) {
         chunks.push(chunk)
       })
-      .once('end', function () {
+      .once('end', function (code) {
         stderr = Buffer.concat(chunks).toString('utf8')
         var match = stderr.match(/signature:\s*OK/)
         assert(match)

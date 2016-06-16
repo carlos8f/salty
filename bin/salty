@@ -35,7 +35,6 @@ program
   .alias('e')
   .description('encrypt a file')
   .option('-t, --to <email>', 'email address to encrypt for. (must be imported first. default: self)')
-  .option('-n, --nonce <nonce>', 'use a specific nonce (base64-encoded)')
   .option('-m, --message', 'compose a message instead of using [infile] (implies -a)')
   .option('-s, --sign', 'sign the message to reveal/prove our identity')
   .option('-a, --armor', 'output as a PEM to STDOUT')

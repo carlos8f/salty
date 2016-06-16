@@ -5,6 +5,7 @@
   "main": "lib.js",
   "bin": "./bin/salty",
   "dependencies": {
+    "bs58": "^3.0.0",
     "cli-prompt": "^0.6.0",
     "commander": "git+https://github.com/carlos8f/commander.js.git",
     "fstream": "^1.0.8",
@@ -45,8 +46,10 @@
   },
   "bundledDependencies": [
     "balanced-match",
+    "base-x",
     "block-stream",
     "brace-expansion",
+    "bs58",
     "cli-prompt",
     "commander",
     "concat-map",

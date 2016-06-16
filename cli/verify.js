@@ -5,6 +5,7 @@ var fs = require('fs')
   , libHeader = require('../lib/header')
   , loadRecipients = require('../utils/loadRecipients')
   , Progress = require('progress')
+  , bs58 = require('bs58')
 
 module.exports = function (inSig, inFile, options) {
   if (inSig.indexOf('.salty-sig') === -1) {
@@ -24,7 +25,7 @@ module.exports = function (inSig, inFile, options) {
       assert(header['nonce'])
       assert(header['from-salty-id'])
       var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
-      var nonce = Buffer(header['nonce'], 'base64')
+      var nonce = Buffer(bs58.decode(header['nonce']))
       var hashStream = crypto.createHmac('sha256', nonce)
       inStream
         .on('data', function (chunk) {

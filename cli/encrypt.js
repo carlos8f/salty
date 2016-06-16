@@ -38,7 +38,7 @@ module.exports = function (inFile, outFile, options) {
       }
     }
   }
-  var nonce = options.nonce ? Buffer(options.nonce, 'base64') : makeNonce()
+  var nonce = makeNonce()
   loadRecipients(walletDir, function (err, recipients) {
     if (err) throw err
     var recipient = options.to ? recipients[options.to] : recipients.self

@@ -5,6 +5,7 @@ var fs = require('fs')
   , Progress = require('progress')
   , writeHeader = require('../utils/writeHeader')
   , printHeader = require('../utils/printHeader')
+  , bs58 = require('bs58')
 
 module.exports = function (inFile, outFile, options) {
   if (!outFile) {
@@ -32,13 +33,13 @@ module.exports = function (inFile, outFile, options) {
     var nonce = makeNonce(32)
     var hashStream = crypto.createHmac('sha256', nonce)
     var header = Object.create(null)
-    header['from-salty-id'] = wallet.pubkey.toBuffer().toString('base64')
-    header['nonce'] = nonce.toString('base64')
+    header['from-salty-id'] = wallet.pubkey
+    header['nonce'] = bs58.encode(nonce)
     hashStream.once('data', function (hash) {
       bar.terminate()
-      header['hash'] = hash.toString('base64')
+      header['hash'] = bs58.encode(hash)
       var headerStr = writeHeader(header)
-      header['signature'] = wallet.sign(Buffer(headerStr), true).toString('base64')
+      header['signature'] = bs58.encode(wallet.sign(Buffer(headerStr), true))
       var finalHeader = writeHeader(header)
       fs.writeFile(outFile, finalHeader, function (err) {
         if (err) throw err
