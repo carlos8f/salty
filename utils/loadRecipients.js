@@ -1,6 +1,5 @@
 var fs = require('fs')
   , path = require('path')
-  , base64url = require('./base64url')
   , libPubkey = require('../lib/pubkey')
   , loadPubkey = require('../utils/loadPubkey')
 
@@ -24,10 +23,8 @@ function loadRecipients (walletDir, cb) {
         catch (e) {
           return
         }
-        // real base64
-        recipients[pubkey.toBuffer().toString('base64')] = pubkey
-        // base64-url
-        recipients[base64url.encode(pubkey.toBuffer())] = pubkey
+        // base58
+        recipients[pubkey.pubkey] = pubkey
         // email
         if (pubkey.email) recipients[pubkey.email] = pubkey
       })

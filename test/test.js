@@ -8,6 +8,7 @@ var assert = require('assert')
   , tmpDir = path.join(require('os').tmpDir(), Math.random().toString(36).slice(2))
   , BIN = path.join(__dirname, '..', 'bin', 'salty')
   , request = require('micro-request')
+  , libSalty = require('../')
 
 describe('tests', function () {
   var p = path.join(tmpDir, 'alice.jpg')
@@ -71,7 +72,7 @@ describe('tests', function () {
       })
       .once('end', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
-        var match = stdout.match(/([a-zA-Z0-9]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/)
+        var match = stdout.match(libSalty.pubkey.regex)
         assert(match)
         alice_pubkey = match[0]
         done()
@@ -102,7 +103,7 @@ describe('tests', function () {
       })
       .once('end', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
-        var match = stdout.match(/([a-zA-Z0-9]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/)
+        var match = stdout.match(libSalty.pubkey.regex)
         assert(match)
         bob_pubkey = match[0]
         done()
@@ -129,8 +130,8 @@ describe('tests', function () {
       })
       .once('end', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
-        var match = stdout.match(/([a-zA-Z0-9]+)\s*(?:"([^"]*)")?\s*(?:<([^>]*)>)?/g)
-        assert.equal(match.length, 1)
+        var match = stdout.match(libSalty.pubkey.regex)
+        assert.equal(match.length, 4)
         assert.equal(match[0], bob_pubkey)
         done()
       })
