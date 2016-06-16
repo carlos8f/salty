@@ -100,6 +100,9 @@ module.exports = function (inFile, outFile, options) {
           process.once('SIGTERM', onExit)
           tmpStream.once('finish', function () {
             inStat = fs.statSync(tmpFile)
+            if (options.armor && inStat.size > constants.PEM_MAX_SIZE) {
+              throw new Error('File is too big for ascii armor')
+            }
             inStream = fs.createReadStream(tmpFile)
             inStream.once('end', function () {
               fs.unlinkSync(tmpFile)
@@ -129,6 +132,9 @@ module.exports = function (inFile, outFile, options) {
           reader.pipe(tarStream)
         }
         else {
+          if (options.armor && inStat.size > constants.PEM_MAX_SIZE) {
+            throw new Error('File is too big for ascii armor')
+          }
           inStream = fs.createReadStream(inFile)
           encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor, headers)
           withEncryptor(encryptor, inStat.size)
