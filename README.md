@@ -234,13 +234,12 @@ signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqc
 
 ### TODO
 
-- Custom headers, repeatable -H param
-- Regenerate decryption key
 - rm pubkey
 - require signature from, require trusted sig
 - ascii armor/enclosure for sig
 - flag to not translate header
 - base58 encode/decode
+- ad-hoc --to without import
 
 - - -
 

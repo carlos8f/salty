@@ -10,6 +10,7 @@ var program = require('commander')
 program
   .command('init')
   .description('initialize or update a wallet')
+  .option('-R, --regen', 'regenerate decryption key')
   .action(cli.init)
 
 program

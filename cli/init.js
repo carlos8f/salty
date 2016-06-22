@@ -38,7 +38,20 @@ module.exports = function (options) {
   })
 
   function doInit (wallet) {
-    prompt.multi([
+    var q = []
+    if (options.regen) {
+      q.push({
+        label: 'Are you SURE you want a new decryption key? Your old key will be gone forever! (y/n)',
+        key: 'sure',
+        validate: function (val) {
+          if (!val.match(/^y/i)) {
+            console.error('Cancelled.')
+            process.exit(1)
+          }
+        }
+      })
+    }
+    q = q.concat([
       {
         label: 'Your name',
         key: 'name',
@@ -64,14 +77,18 @@ module.exports = function (options) {
           return ret
         }
       }
-    ], function (info) {
+    ])
+    prompt.multi(q, function (info) {
       var isUpdate = !!wallet
-      if (!wallet) {
-        wallet = libWallet.create(info)
+      if (isUpdate) {
+        wallet.pubkey.name = info.name === 'NULL' ? null : info.name
+        wallet.pubkey.email = info.email === 'NULL' ? null : info.email
+        if (options.regen) {
+          wallet.regen()
+        }
       }
       else {
-        wallet.name = info.name
-        wallet.email = info.email
+        wallet = libWallet.create(info)
       }
       var str = wallet.toPEM(info.passphrase)
       fs.writeFileSync(path.join(walletDir, 'id_salty'), str + '\n', {mode: parseInt('0600', 8)})
