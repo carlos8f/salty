@@ -6,8 +6,10 @@ var fs = require('fs')
   , writeHeader = require('../utils/writeHeader')
   , printHeader = require('../utils/printHeader')
   , bs58 = require('bs58')
+  , headersFromArgs = require('../utils/headersFromArgs')
 
 module.exports = function (inFile, outFile, options) {
+  options.headers = headersFromArgs()
   if (!outFile) {
     outFile = inFile + '.salty-sig'
   }
@@ -35,6 +37,9 @@ module.exports = function (inFile, outFile, options) {
     var header = Object.create(null)
     header['from-salty-id'] = wallet.pubkey
     header['nonce'] = bs58.encode(nonce)
+    Object.keys(options.headers).forEach(function (k) {
+      header[k] = options.headers[k]
+    })
     hashStream.once('data', function (hash) {
       bar.terminate()
       header['hash'] = bs58.encode(hash)

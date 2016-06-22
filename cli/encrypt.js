@@ -17,8 +17,11 @@ var fs = require('fs')
   , fstream = require('fstream')
   , tmpDir = require('os').tmpDir()
   , path = require('path')
+  , minimist = require('minimist')
+  , headersFromArgs = require('../utils/headersFromArgs')
 
 module.exports = function (inFile, outFile, options) {
+  options.headers = headersFromArgs()
   var walletDir = options.parent.wallet
   if (options.message || options.gist) options.armor = true
   if (!options.armor) {
@@ -69,14 +72,14 @@ module.exports = function (inFile, outFile, options) {
         })()
         function withMessage (m) {
           var mStream = through()
-          var encryptor = encrypt(mStream, recipient, nonce, m.length, wallet, true)
+          var encryptor = encrypt(mStream, recipient, nonce, m.length, wallet, true, options.headers)
           withEncryptor(encryptor, m.length)
           mStream.end(m)
         }
       }
       else {
         var inStat = fs.statSync(inFile)
-        var headers = {}, inStream, encryptor
+        var inStream, encryptor
         if (inStat.isDirectory()) {
           var tarStream = tar.Pack({fromBase: true})
           gzipStream = tarStream.pipe(zlib.createGzip())
@@ -107,11 +110,11 @@ module.exports = function (inFile, outFile, options) {
             inStream.once('end', function () {
               fs.unlinkSync(tmpFile)
             })
-            encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor, headers)
+            encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor, options.headers)
             withEncryptor(encryptor, inStat.size)
           })
-          headers['content-type'] = 'application/x-tar'
-          headers['content-encoding'] = 'x-gzip'
+          options.headers['content-type'] = 'application/x-tar'
+          options.headers['content-encoding'] = 'x-gzip'
           var reader = fstream.Reader({
             path: inFile,
             type: 'Directory',
@@ -136,7 +139,7 @@ module.exports = function (inFile, outFile, options) {
             throw new Error('File is too big for ascii armor')
           }
           inStream = fs.createReadStream(inFile)
-          encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor, headers)
+          encryptor = encrypt(inStream, recipient, nonce, inStat.size, wallet, options.armor, options.headers)
           withEncryptor(encryptor, inStat.size)
         }
       }
