@@ -21,7 +21,6 @@ var fs = require('fs')
   , headersFromArgs = require('../utils/headersFromArgs')
 
 module.exports = function (input, options) {
-  options.headers = headersFromArgs()
   var walletDir = options.parent.wallet
   var inFile = path.join(walletDir, 'imported_keys')
   fs.readFile(inFile, {encoding: 'utf8'}, function (err, str) {
@@ -41,7 +40,7 @@ module.exports = function (input, options) {
         goodLines.push(line)
       }
     })
-    fs.writeFile(inFile, goodLines.join('\n'), function (err) {
+    fs.writeFile(inFile, goodLines.join('\n'), {mode: parseInt('0600', 8)}, function (err) {
       if (err) throw err
       console.log('Removed ' + (lines.length - goodLines.length) + ' key(s).')
     })
