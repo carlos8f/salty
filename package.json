@@ -9,6 +9,7 @@
     "cli-prompt": "^0.6.0",
     "commander": "git+https://github.com/carlos8f/commander.js.git",
     "fstream": "^1.0.8",
+    "is-utf8": "^0.2.1",
     "micro-request": "^666.0.5",
     "minimist": "^1.2.0",
     "nacl-stream": "^0.3.3",

@@ -234,9 +234,8 @@ signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqc
 
 ### TODO
 
-- rm pubkey
-- require signature from, require trusted sig
-- ascii armor/enclosure for sig
+- parse ascii armor/enclosure for sig
+- separate verifyPk / encryptPk with dot
 - flag to not translate header
 - base58 encode/decode
 - ad-hoc --to without import
