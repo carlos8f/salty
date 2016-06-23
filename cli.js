@@ -6,6 +6,7 @@ module.exports = {
   init: require('./cli/init'),
   ls: require('./cli/ls'),
   restore: require('./cli/restore'),
+  rm: require('./cli/rm'),
   save: require('./cli/save'),
   sign: require('./cli/sign'),
   verify: require('./cli/verify')

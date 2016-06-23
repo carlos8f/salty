@@ -32,6 +32,11 @@ program
   .action(cli.ls)
 
 program
+  .command('rm <pubkey|email>')
+  .description('remove pubkey')
+  .action(cli.rm)
+
+program
   .command('encrypt [infile|indir] [outfile]')
   .alias('e')
   .description('encrypt a file')
