@@ -293,17 +293,48 @@ signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3h
 
 ---
 
-### Puzzle
+### example signed message (text)
+
+```
+$ salty sign -a -h ripemd160 -H 'content-type: text/markdown' -H 'filename: README.md' README.md
+```
 
 ```
 -----BEGIN SALTY SIGNED MESSAGE-----
 from-salty-id: 2ZuU37oJ1erD85AzVohXq6Y74GHv2hjNYB9fu3P5o9rsGSvRo
  19HK2wTL4MLma3N6gVFqXN81VTqQ6apBhc5Kezq
+content-type: text/markdown
+filename: README.md
 hash-algorithm: ripemd160
+content-transfer-encoding: 8bit
+hash: dcde04cff759a9e38ee4683b09355c857053ee80
+signature: 2U135BFHiKYDKxiXMYiQbhDZMxD2imrXYJFVMZezKiTZmfLhtbYUb
+ wxnhsQL4rdc6MfeGsGoxAhEZ1aYYs5tgia5
+
+This is the jekyll source of my personal website, [s8f.org](http://s8f.org/).
+
+-----END SALTY SIGNED MESSAGE-----
+```
+
+### Example Signed Message (image)
+
+```
+$ salty sign -a -h sha512 -H 'content-type: image/vnd.microsoft.icon' -H 'filename: favicon.ico' favicon.ico
+```
+
+```
+-----BEGIN SALTY SIGNED MESSAGE-----
+from-salty-id: 2ZuU37oJ1erD85AzVohXq6Y74GHv2hjNYB9fu3P5o9rsGSvRo
+ 19HK2wTL4MLma3N6gVFqXN81VTqQ6apBhc5Kezq
+content-type: image/vnd.microsoft.icon
+filename: favicon.ico
+hash-algorithm: sha512
 content-transfer-encoding: base64
-hash: 9ce4884a2fd532c246181250fa3a46dcf3392a65
-signature: 2doo6zwH3GL2jjbsRwu14NSoezmqNSSxwStXmK2f91rky4uSDHh6y
- pzhatshdpZdaV54ujDaA3mVWNBS6VCLMpjy
+hash: 628b42749e7b007f13c2aa858210e5a5411cedfff93ebb1c758f8a2b2d
+ 5a13f4ccded598aa096b6f824a81e00ddfbd6fd30894eae24530b218158c98e
+ 7e3a16f
+signature: Kw7dZiBKZNwj4kejF2HevVPoni2mZry5VEKStKQYDeP6H61EWdD2s
+ yod6FJv5JJwXWyaSpBhXjHqSrasHJF2QEx
 
 AAABAAEADxAAAAEAIAAoBAAAFgAAACgAAAAPAAAAIAAAAAEAIAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
