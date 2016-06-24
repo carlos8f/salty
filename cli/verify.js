@@ -18,7 +18,7 @@ module.exports = function (inSig, inFile, options) {
     })
     inStream.once('end', function () {
       var buf = Buffer.concat(chunks)
-      withStr(buf.toString('utf8'))
+      withStr(buf.toString('utf8').replace(/\r/g, ''))
     })
   }
   else {
