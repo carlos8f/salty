@@ -268,7 +268,11 @@ signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3h
 
 ## Log
 
-### release [4.0.2](https://github.com/carlos8f/salty/releases/tag/v4.0.2) (latest)
+### release [4.0.3](https://github.com/carlos8f/salty/releases/tag/v4.0.3) (latest)
+
+- fix translateHeader if no name/email
+
+### release 4.0.2
 
 - fix ascii armor signature headers not wrapped
 - add signing examples
