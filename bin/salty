@@ -66,6 +66,7 @@ program
   .alias('s')
   .description('create a signature')
   .option('-H, --header <key: value>', 'add a custom header (repeatable)')
+  .option('-h, --hash <alg>', 'hash algorithm (default: sha256)', String, 'sha256')
   .option('-a, --armor', 'output ASCII armor to STDOUT')
   .option('-F, --force', 'ignore warnings and do it')
   .action(cli.sign)

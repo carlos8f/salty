@@ -7,21 +7,26 @@ var fs = require('fs')
   , bs58 = require('bs58')
   , headersFromArgs = require('../utils/headersFromArgs')
   , isUtf8 = require('is-utf8')
+  , createMessage = require('../lib/message').create
+  , translateHeader = require('../utils/translateHeader')
 
 module.exports = function (inFile, outFile, options) {
   options.headers = headersFromArgs()
-  if (!outFile) {
-    outFile = inFile + '.salty-sig'
-  }
-  try {
-    fs.statSync(outFile)
-    if (!options.parent.force) {
-      throw new Error('Refusing to overwrite ' + outFile + '. Use --force to ignore this.')
+  options.headers['hash-algorithm'] = options.hash
+  if (!options.armor) {
+    if (!outFile) {
+      outFile = inFile + '.salty-sig'
     }
-  }
-  catch (err) {
-    if (err && err.code !== 'ENOENT') {
-      throw err
+    try {
+      fs.statSync(outFile)
+      if (!options.parent.force) {
+        throw new Error('Refusing to overwrite ' + outFile + '. Use --force to ignore this.')
+      }
+    }
+    catch (err) {
+      if (err && err.code !== 'ENOENT') {
+        throw err
+      }
     }
   }
   loadWallet(options.parent.wallet, function (err, wallet) {
@@ -44,31 +49,24 @@ module.exports = function (inFile, outFile, options) {
         bar.tick(chunk.length)
       })
     }
-    var hashStream = crypto.createHash('sha256')
-    var header = Object.create(null)
-    header['from'] = bs58.encode(wallet.pubkey.verifyPk)
+    var header = {}
+    header['from-salty-id'] = wallet.pubkey.pubkey
     Object.keys(options.headers).forEach(function (k) {
       header[k] = options.headers[k]
     })
+    var hashStream = crypto.createHash(options.headers['hash-algorithm'])
     hashStream.once('data', function (hash) {
       if (!options.armor) {
         bar.terminate()
       }
-      header['hash'] = bs58.encode(hash)
+      header['hash'] = hash.toString('hex')
       var headerStr = writeHeader(header)
       header['signature'] = bs58.encode(wallet.sign(Buffer(headerStr), true))
       var finalHeader = writeHeader(header)
       if (options.armor) {
-        var out = '-----BEGIN SALTY SIGNED MESSAGE-----\n'
-        out += finalHeader + '\n'
         var buf = Buffer.concat(chunks)
-        if (options.headers['content-transfer-encoding'] === '8bit') {
-          out += buf.toString('utf8')
-        }
-        else {
-          out += buf.toString('base64').match(/.{1,64}/g).join('\n')
-        }
-        out += '\n-----END SALTY SIGNED MESSAGE-----\n'
+        var out = createMessage(header, buf)
+        header = translateHeader(header, wallet.recipients)
         printHeader(header)
         console.log(out)
       }
