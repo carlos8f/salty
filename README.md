@@ -261,7 +261,7 @@ signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3h
 
     -h, --help   output usage information
     -a, --armor  expect ASCII armor, output to STDOUT
-``
+```
 
 ## Log
 
