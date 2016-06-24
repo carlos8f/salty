@@ -15,7 +15,7 @@ A GUI is being developed as a node HTTP server you can host locally or remotely 
 
 ### Features
 
-- NO [3rd parties](https://peerio.com/pricing.html), NO [p2p network](https://en.wikipedia.org/wiki/PRISM_(surveillance_program)), NO [browser js](https://www.nccgroup.trust/us/about-us/newsroom-and-events/blog/2011/august/javascript-cryptography-considered-harmful/), NO [package managers](https://docs.npmjs.com/misc/scripts), NO [exotic/compiled deps](https://www.openssl.org/news/vulnerabilities.html), and NO [shady corporations](https://github.com/VirgilSecurity). PERIOD.
+- NO [3rd parties](https://peerio.com/pricing.html), NO [p2p network](https://en.wikipedia.org/wiki/PRISM_(surveillance_program)), NO [browser js](https://www.nccgroup.trust/us/about-us/newsroom-and-events/blog/2011/august/javascript-cryptography-considered-harmful/), NO [package managers](https://docs.npmjs.com/misc/scripts), NO [exotic/compiled deps](https://www.openssl.org/news/vulnerabilities.html), no [Comodo SSL](https://www.reddit.com/r/programming/comments/4pj89t/support_lets_encrypt_get_cloudflare_cdn_et_al_to/), and NO [shady corporations](https://github.com/VirgilSecurity). PERIOD.
 - general purpose CLI, lightweight library attached
 - audited, bundled dependencies - no install scripts or backdoors
 - supports anonymous-sender or signed/verified messaging
