@@ -298,7 +298,7 @@ signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3h
 
 ---
 
-### example signed message (text)
+### Example signed message (text)
 
 ```
 $ salty sign -a -h ripemd160 -H 'content-type: text/markdown' -H 'filename: README.md' README.md
@@ -321,7 +321,7 @@ This is the jekyll source of my personal website, [s8f.org](http://s8f.org/).
 -----END SALTY SIGNED MESSAGE-----
 ```
 
-### Example Signed Message (image)
+### Example signed message (image)
 
 ```
 $ salty sign -a -h sha512 -H 'content-type: image/vnd.microsoft.icon' -H 'filename: favicon.ico' favicon.ico
