@@ -1,6 +1,6 @@
 {
   "name": "salty",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Alternative public key encryption",
   "main": "lib.js",
   "bin": "./bin/salty",
