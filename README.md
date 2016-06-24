@@ -5,7 +5,7 @@ Alternative public key encryption
 
 ## Description
 
-Salty is an alternative to PGP/GPG using [NaCl](https://en.wikipedia.org/wiki/NaCl_(software)) instead of RSA/DSA.
+Salty is a [nodejs](https://nodejs.org/)-powered CLI-based alternative to PGP/GPG using [NaCl](https://en.wikipedia.org/wiki/NaCl_(software)) instead of RSA/DSA.
 
 Commits and tags in this repo are signed with GPG key [5FBB 2F98 3862 1AFF](https://keybase.io/carlos8f).
 
@@ -283,11 +283,6 @@ signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3h
 
 - Added anonymous gist support
 - Added tar/gz support for encrypting directories
-
-### TODO
-
-- flag to not translate header
-- ad-hoc --to without import
 
 - - -
 
