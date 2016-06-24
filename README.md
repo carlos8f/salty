@@ -268,6 +268,10 @@ signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3h
 
 ## Log
 
+### release 4.0.1
+
+- updated generic install example to use `wget` instead of `git`
+
 ### release 4.0
 
 - now you can regenerate your decryption key with `salty init --regen`
