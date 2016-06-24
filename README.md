@@ -43,11 +43,11 @@ $ brew install salty
 Install first: [nodejs](https://nodejs.org/)
 
 ```
-$ wget https://github.com/carlos8f/salty/archive/v4.0.2.tar.gz
-$ shasum -a 256 v4.0.2.tar.gz
-8cac1cc6179fb05bb0e10afc26edec4ed5eb38b8bd8c7f0f4161e2e641e669d6  v4.0.2.tar.gz
-$ tar -xf v4.0.2.tar.gz
-$ sudo ln -sf `pwd`/salty-4.0.2/bin/salty /usr/local/bin/salty
+$ wget https://github.com/carlos8f/salty/archive/v4.0.3.tar.gz
+$ shasum -a 256 v4.0.3.tar.gz
+62a6ea7100c7301089e95f815853ce66fed5aec2e805cf162f318bc5e9466db1  v4.0.3.tar.gz
+$ tar -xf v4.0.3.tar.gz
+$ sudo ln -sf `pwd`/salty-4.0.3/bin/salty /usr/local/bin/salty
 ```
 
 ## Useful links
