@@ -68,7 +68,7 @@ module.exports = function (inFile, outFile, options) {
       if (options.armor) {
         var buf = Buffer.concat(chunks)
         var out = createMessage(header, buf)
-        header = translateHeader(header, wallet.recipients)
+        header = options.translate ? translateHeader(header, wallet.recipients) : header
         printHeader(header)
         console.log(out)
       }

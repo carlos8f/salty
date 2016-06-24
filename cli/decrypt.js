@@ -84,7 +84,7 @@ module.exports = function (inFile, outFile, options) {
             throw new Error('invalid PEM')
           }
           var tmpStream = through()
-          decryptor = decrypt(tmpStream, wallet, pem.body.length)
+          decryptor = decrypt(tmpStream, wallet, pem.body.length, !options.translate)
           withDecryptor(decryptor)
           tmpStream.end(pem.body)
         })
@@ -107,7 +107,7 @@ module.exports = function (inFile, outFile, options) {
       else {
         withOutfile()
         outStream = fs.createWriteStream(outFile, {mode: parseInt('0600', 8)})
-        decryptor = decrypt(inStream, wallet, inStat.size)
+        decryptor = decrypt(inStream, wallet, inStat.size, !options.translate)
         withDecryptor(decryptor)
         var bar = new Progress('  decrypting [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
         var chunkCounter = 0
@@ -126,7 +126,7 @@ module.exports = function (inFile, outFile, options) {
           if (options.sig && !h['signature']) {
             throw new Error('no signature')
           }
-          header = translateHeader(h, wallet.recipients)
+          header = options.translate ? translateHeader(h, wallet.recipients) : h
           if (h['content-encoding'] === 'x-gzip' && h['content-type'] === 'application/x-tar') {
             var tmpPath = '.' + crypto.randomBytes(16).toString('hex')
             var extractStream = tar.Extract({path: tmpPath, mode: parseInt('0700', 8)})

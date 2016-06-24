@@ -38,7 +38,7 @@ module.exports = function (inSig, inFile, options) {
       if (options.armor) {
         var message = libMessage.parse(headerStr)
         var hash = crypto.createHash(message.header['hash-algorithm']).update(message.body).digest()
-        header = libHeader.parse(message.header).validate(hash).toObject()
+        header = libHeader.parse(message.header, !options.translate).validate(hash).toObject()
         header = translateHeader(header, recipients)
         printHeader(header)
         process.stdout.write(message.body)
@@ -46,7 +46,7 @@ module.exports = function (inSig, inFile, options) {
       else {
         var inStat = fs.statSync(inFile)
         var inStream = fs.createReadStream(inFile)
-        var headerFuncs = libHeader.parse(headerStr)
+        var headerFuncs = libHeader.parse(headerStr, !options.translate)
         var header = headerFuncs.toObject()
         assert(header['from-salty-id'])
         var bar = new Progress('  verifying [:bar] :percent ETA: :etas', { total: inStat.size, width: 80 })
@@ -59,7 +59,7 @@ module.exports = function (inSig, inFile, options) {
           .once('data', function (hash) {
             bar.terminate()
             header = headerFuncs.validate(hash).toObject()
-            header = translateHeader(header, recipients)
+            header = options.translate ? translateHeader(header, recipients) : header
             printHeader(header)
           })
       }
