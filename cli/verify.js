@@ -10,19 +10,39 @@ var fs = require('fs')
   , bs58 = require('bs58')
 
 module.exports = function (inSig, inFile, options) {
-  if (inSig.indexOf('.salty-sig') === -1) {
-    inSig += '.salty-sig'
+  if (options.armor) {
+    var inStream = inSig ? fs.createReadStream(inSig) : process.stdin
+    var chunks = []
+    inStream.on('data', function (chunk) {
+      chunks.push(chunk)
+    })
+    inStream.once('end', function () {
+      var buf = Buffer.concat(chunks)
+      withStr(buf.toString('utf8'))
+    })
   }
-  if (!inFile && !options.armor) {
-    inFile = inSig.replace('.salty-sig', '')
+  else {
+    if (inSig.indexOf('.salty-sig') === -1) {
+      inSig += '.salty-sig'
+    }
+    if (!inFile && !options.armor) {
+      inFile = inSig.replace('.salty-sig', '')
+    }
+    fs.readFile(inSig, {encoding: 'utf8'}, function (err, headerStr) {
+      if (err) throw err
+      withStr(headerStr)
+    })
   }
-  fs.readFile(inSig, {encoding: 'utf8'}, function (err, headerStr) {
-    if (err) throw err
+  function withStr (headerStr) {
     loadRecipients(options.parent.wallet, function (err, recipients) {
       if (err) throw err
       if (options.armor) {
-        var result = libMessage.parse(headerStr)
-        console.log(result)
+        var message = libMessage.parse(headerStr)
+        var hash = crypto.createHash(message.header['hash-algorithm']).update(message.body).digest()
+        header = libHeader.parse(message.header).validate(hash).toObject()
+        header = translateHeader(header, recipients)
+        printHeader(header)
+        process.stdout.write(message.body)
       }
       else {
         var inStat = fs.statSync(inFile)
@@ -45,5 +65,5 @@ module.exports = function (inSig, inFile, options) {
           })
       }
     })
-  })
+  }
 }

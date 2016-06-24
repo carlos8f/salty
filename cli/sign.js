@@ -34,11 +34,14 @@ module.exports = function (inFile, outFile, options) {
     var inStat = fs.statSync(inFile)
     var inStream = fs.createReadStream(inFile)
     var chunks = []
+    var header = {
+      'from-salty-id': wallet.pubkey.pubkey
+    }
     if (options.armor) {
       options.headers['content-transfer-encoding'] = '8bit'
       inStream.on('data', function (chunk) {
         if (!isUtf8(chunk)) {
-          options.headers['content-transfer-encoding'] = 'base64'
+          header['content-transfer-encoding'] = 'base64'
         }
         chunks.push(chunk)
       })
@@ -49,12 +52,10 @@ module.exports = function (inFile, outFile, options) {
         bar.tick(chunk.length)
       })
     }
-    var header = {}
-    header['from-salty-id'] = wallet.pubkey.pubkey
     Object.keys(options.headers).forEach(function (k) {
       header[k] = options.headers[k]
     })
-    var hashStream = crypto.createHash(options.headers['hash-algorithm'])
+    var hashStream = crypto.createHash(header['hash-algorithm'])
     hashStream.once('data', function (hash) {
       if (!options.armor) {
         bar.terminate()
