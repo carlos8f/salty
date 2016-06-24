@@ -80,16 +80,16 @@ NBm4au6wbuVp8dL41jhLeQ==
 Designed to be sharable, human-readable, and unique.
 
 ```
-   type                          public keys                            optional meta
----------- [space] ----------------------------------------- [space] --------  ---------
-"salty-id"         base64url(encryptPk (32) + verifyPk (32))         "{name}"  <{email}>
+              public keys                           optional meta
+----------------------------------------- [space] --------  --------
+  base58(encryptPk (32) + verifyPk (32))          "{name}"  <{email}>
 
 ```
 
 Example:
 
 ```
-salty-id jbMGsmaXG7bJLZjhnn_i-9GyQtEVBBTL8JwdpBgKC0y6wvvEbesSYp4vOkjOEt5IZtt0pdrXI2ARZKkAIHUnhg "Carlos Rodriguez" <carlos@s8f.org>
+2ZuU37oJ1erD85AzVohXq6Y74GHv2hjNYB9fu3P5o9rsGSvRo19HK2wTL4MLma3N6gVFqXN81VTqQ6apBhc5Kezq "Carlos" <carlos@s8f.org>
 ```
 
 ### Salty file
@@ -126,19 +126,19 @@ Appends a header to the message for verification, and pads the plaintext with nu
 Always contains a sha256 HMAC to authenticate the message, and optionally contains a signature from the sender.
 
 ```
-hash: base64( sha256_hmac( shared_secret ) of message )
-[from-salty-id]: base64(encryptPk (32) + verifyPk (32))
-[to-salty-id]: base64(encryptPk (32) + verifyPk (32))
-[signature]: base64( detached sig of previous headers )
+hash: hex( sha256_hmac( shared_secret ) of message )
+[from-salty-id]: base58(encryptPk (32) + verifyPk (32))
+[to-salty-id]: base58(encryptPk (32) + verifyPk (32))
+[signature]: base58( detached sig of previous headers )
 ```
 
 Example:
 
 ```
-hash:          dH4McUU9sLJV+i34hfXjSUGTYn2xQhj2gbAYqAMighU=
-from-salty-id: oU3lbcpdHo81Eo8SifwoHg5CEEZ5q-Rb0_zMWpJU-GWlr9lIjILqv5RneVsMo3azdEJ8UYTmz86dz0Cx5ciIsw
-to-salty-id:   oU3lbcpdHo81Eo8SifwoHg5CEEZ5q-Rb0_zMWpJU-GWlr9lIjILqv5RneVsMo3azdEJ8UYTmz86dz0Cx5ciIsw
-signature:     vtQQktMrFEszVSeVMgqN22EPOCMjZQZvA2TZkujcE7BtXAv9Lf7k1P4HE1D/c/XoIPvoQ8LiHJEgumWlgGuNDg==
+hash:          3a5a42ad3cadea1ac4abd5169a7a1c2b2017404e00b9f08c5dee6c205f7a197a
+from-salty-id: 2ZuU37oJ1erD85AzVohXq6Y74GHv2hjNYB9fu3P5o9rsGSvRo19HK2wTL4MLma3N6gVFqXN81VTqQ6apBhc5Kezq
+to-salty-id:   self
+signature:     5V1c1P5a8dqDVMPhwqnDF39ZrHpaw7jhetEgHyPUkjM8tYvugPzDJ3xyhD9WdJQ4AjwYkN2XdWhnTB3GTRMJuAEd
 ```
 
 ### Signature
@@ -146,19 +146,19 @@ signature:     vtQQktMrFEszVSeVMgqN22EPOCMjZQZvA2TZkujcE7BtXAv9Lf7k1P4HE1D/c/XoI
 Always contains the signer's public keys, a sha256 HMAC to authenticate the file, keyed with a 32-byte random nonce, and a signature.
 
 ```
-from-salty-id: base64(encryptPk (32) + verifyPk (32))
-hash: base64( sha256_hmac( nonce ) of file )
-nonce: base64( randomNonce (32) )
-signature: base64( detached sig of previous headers )
+from-salty-id: base58(encryptPk (32) + verifyPk (32))
+hash-algorithm: algorithm
+hash: hex( algorithm( file ) )
+signature: base58( detached sig of previous headers )
 ```
 
 Example:
 
 ```
-from-salty-id: jbMGsmaXG7bJLZjhnn/i+9GyQtEVBBTL8JwdpBgKC0y6wvvEbesSYp4vOkjOEt5IZtt0pdrXI2ARZKkAIHUnhg==
-nonce: rKtBFyFXZbLrmCzUsxVKlqPkYinmOWqvJSLN3Oyhejg=
-hash: gXkCnKr04zD8rTzs++17z9LWGoNgWceSo2XQXQJOFSQ=
-signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqcK64BpnzphRS5UpYDg==
+from-salty-id: 2ZuU37oJ1erD85AzVohXq6Y74GHv2hjNYB9fu3P5o9rsGSvRo19HK2wTL4MLma3N6gVFqXN81VTqQ6apBhc5Kezq
+hash-algorithm: sha256
+hash: 19e406822f9eac2c19f0a0d59c1ab1f554e354fadbc1836f9e10858ce227ed2c
+signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3htsWbXZdF6LAsoyXoE3v
 ```
 
 ## Usage
@@ -169,16 +169,20 @@ signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqc
 
   Commands:
 
-    init                                          initialize or update a wallet
+    init [options]                                initialize or update a wallet
     id|pubkey                                     output your shareable pubkey string
     import|i <pubkey|url|file>                    import a pubkey
     ls|l                                          list imported keys
+    rm <pubkey|email>                             remove pubkey
     encrypt|e [options] [infile|indir] [outfile]  encrypt a file
     decrypt|d [options] <infile|gist> [outfile]   decrypt and verify a file
-    sign|s [options] <infile> [outfile]           create a ".salty-sig" signature file
-    verify|v <insig> [infile]                     verify a ".salty-sig" signature with the original file
+    sign|s [options] <infile> [outfile]           create a signature
+    verify|v [options] <insig> [infile]           verify a signature
     save [indir] [outfile]                        save an encrypted backup of your wallet
     restore [infile] [outdir]                     restore your wallet from a backup
+    encode [infile]                               output base58-encoded data to STDOUT
+    decode [infile]                               output base58-decoded data to STDOUT
+    *
 
   Options:
 
@@ -197,15 +201,15 @@ signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqc
 
   Options:
 
-    -h, --help           output usage information
-    -t, --to <email>     email address to encrypt for. (must be imported first. default: self)
-    -n, --nonce <nonce>  use a specific nonce (base64-encoded)
-    -m, --message        compose a message instead of using [infile] (implies -a)
-    -s, --sign           sign the message to reveal/prove our identity
-    -a, --armor          output as a PEM to STDOUT
-    -g, --gist           upload encrypted result as a gist
-    -F, --force          ignore warnings and do it
-    -D, --delete         delete the original file after encryption
+    -h, --help                 output usage information
+    -t, --to <email>           email address to encrypt for. (must be imported first. default: self)
+    -m, --message              compose a message instead of using [infile] (implies -a)
+    -s, --sign                 sign the message to reveal/prove our identity
+    -H, --header <key: value>  add a custom header (repeatable)
+    -a, --armor                output ASCII armor to STDOUT
+    -g, --gist                 upload encrypted result as a gist
+    -F, --force                ignore warnings and do it
+    -D, --delete               delete the original file after encryption
 ```
 
 ### salty decrypt
@@ -219,13 +223,56 @@ signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqc
 
     -h, --help    output usage information
     -s, --sig     require a signature
-    -a, --armor   expect PEM format, output to STDOUT
+    -a, --armor   expect ASCII armor, output to STDOUT
     -g, --gist    download the encrypted input from a gist
     -F, --force   ignore warnings and do it
     -D, --delete  delete the salty file after verification
+
 ```
 
+### salty sign
+
+```
+  Usage: sign|s [options] <infile> [outfile]
+
+  create a signature
+
+  Options:
+
+    -h, --help                 output usage information
+    -H, --header <key: value>  add a custom header (repeatable)
+    -h, --hash <alg>           hash algorithm (default: sha256)
+    -a, --armor                output ASCII armor to STDOUT
+    -F, --force                ignore warnings and do it
+```
+
+### salty verify
+
+```
+ Usage: verify|v [options] <insig> [infile]
+
+  verify a signature
+
+  Options:
+
+    -h, --help   output usage information
+    -a, --armor  expect ASCII armor, output to STDOUT
+``
+
 ## Log
+
+### release 4.0
+
+- Switch to base58-encoding for everything but hashes
+- Hashes are now hex-encoded
+- `\r\n` newlines in header/PEM changed to `\n`
+- Custom header support for encryption or signing
+- import now dedupes on verifyPk/email
+- key removal by pubkey/email now supported
+- "attached" signatures now available with ASCII armor flag
+- signatures can be verified without previous setup (wallet creation)
+- signatures support arbitrary hash algorithms
+- added `--no-translate` flag to output raw header
 
 ### release v3.1.0
 
@@ -234,13 +281,8 @@ signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqc
 
 ### TODO
 
-- Custom headers, repeatable -H param
-- Regenerate decryption key
-- rm pubkey
-- require signature from, require trusted sig
-- ascii armor/enclosure for sig
 - flag to not translate header
-- base58 encode/decode
+- ad-hoc --to without import
 
 - - -
 

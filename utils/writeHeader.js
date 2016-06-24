@@ -1,7 +1,7 @@
-function writeHeader (header) {
+function writeHeader (headers) {
   var out = ''
-  Object.keys(header).forEach(function (k) {
-    out += k + ': ' + header[k] + '\r\n'
+  Object.keys(headers).forEach(function (k) {
+    out += k + ': ' + headers[k] + '\n'
   })
   return out
 }

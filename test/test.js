@@ -48,6 +48,7 @@ describe('tests', function () {
         assert(!code)
         done()
       })
+      //.stderr.pipe(process.stderr)
   })
   it('set up bob', function (done) {
     suppose(BIN, ['init', '--wallet', 'bob'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
@@ -165,6 +166,7 @@ describe('tests', function () {
       .end(function (code) {
         assert(!code)
       })
+    proc
       .stdout.on('data', function (chunk) {
         chunks.push(chunk)
       })
@@ -175,6 +177,7 @@ describe('tests', function () {
         outFile = match[1]
         done()
       })
+    //proc.stderr.pipe(process.stderr)
   })
   it('bob decrypt', function (done) {
     var proc = suppose(BIN, ['decrypt', outFile, '--wallet', 'bob'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
@@ -218,6 +221,7 @@ describe('tests', function () {
         assert(!code)
         done()
       })
+      //.stderr.pipe(process.stderr)
   })
   it('verify decrypt', function (done) {
     fs.createReadStream(path.join(tmpDir, outFile.replace('.salty', '')))
@@ -367,7 +371,7 @@ describe('tests', function () {
       })
       .once('end', function (code) {
         stderr = Buffer.concat(chunks).toString('utf8')
-        var match = stderr.match(/signature:\s*OK/)
+        var match = stderr.match(/\(verified\)/)
         assert(match)
         valid = true
       })

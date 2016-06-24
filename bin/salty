@@ -10,6 +10,7 @@ var program = require('commander')
 program
   .command('init')
   .description('initialize or update a wallet')
+  .option('-R, --regen', 'regenerate decryption key')
   .action(cli.init)
 
 program
@@ -31,6 +32,11 @@ program
   .action(cli.ls)
 
 program
+  .command('rm <pubkey|email>')
+  .description('remove pubkey')
+  .action(cli.rm)
+
+program
   .command('encrypt [infile|indir] [outfile]')
   .alias('e')
   .description('encrypt a file')
@@ -38,9 +44,10 @@ program
   .option('-m, --message', 'compose a message instead of using [infile] (implies -a)')
   .option('-s, --sign', 'sign the message to reveal/prove our identity')
   .option('-H, --header <key: value>', 'add a custom header (repeatable)')
-  .option('-a, --armor', 'output as a PEM to STDOUT')
+  .option('-a, --armor', 'output ASCII armor to STDOUT')
   .option('-g, --gist', 'upload encrypted result as a gist')
   .option('-F, --force', 'ignore warnings and do it')
+  .option('--no-translate', 'output raw header')
   .option('-D, --delete', 'delete the original file after encryption')
   .action(cli.encrypt)
 
@@ -49,24 +56,30 @@ program
   .alias('d')
   .description('decrypt and verify a file')
   .option('-s, --sig', 'require a signature')
-  .option('-a, --armor', 'expect PEM format, output to STDOUT')
+  .option('-a, --armor', 'expect ASCII armor, output to STDOUT')
   .option('-g, --gist', 'download the encrypted input from a gist')
   .option('-F, --force', 'ignore warnings and do it')
+  .option('--no-translate', 'output raw header')
   .option('-D, --delete', 'delete the salty file after verification')
   .action(cli.decrypt)
 
 program
   .command('sign <infile> [outfile]')
   .alias('s')
-  .description('create a ".salty-sig" signature file')
+  .description('create a signature')
   .option('-H, --header <key: value>', 'add a custom header (repeatable)')
+  .option('-h, --hash <alg>', 'hash algorithm (default: sha256)', String, 'sha256')
+  .option('-a, --armor', 'output ASCII armor to STDOUT')
+  .option('--no-translate', 'output raw header')
   .option('-F, --force', 'ignore warnings and do it')
   .action(cli.sign)
 
 program
   .command('verify <insig> [infile]')
   .alias('v')
-  .description('verify a ".salty-sig" signature with the original file')
+  .option('-a, --armor', 'expect ASCII armor, output to STDOUT')
+  .option('--no-translate', 'output raw header')
+  .description('verify a signature')
   .action(cli.verify)
 
 program
@@ -78,6 +91,16 @@ program
   .command('restore [infile] [outdir]')
   .description('restore your wallet from a backup')
   .action(cli.restore)
+
+program
+  .command('encode [infile]')
+  .description('output base58-encoded data to STDOUT')
+  .action(cli.encode)
+
+program
+  .command('decode [infile]')
+  .description('output base58-decoded data to STDOUT')
+  .action(cli.decode)
 
 program
   .command('*')

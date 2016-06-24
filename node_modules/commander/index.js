@@ -1020,7 +1020,7 @@ Command.prototype.outputHelp = function(cb) {
       return passthru;
     }
   }
-  process.stdout.write(cb(this.helpInformation()));
+  process.stderr.write(cb(this.helpInformation()));
   this.emit('--help');
 };
 

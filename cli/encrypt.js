@@ -146,7 +146,7 @@ module.exports = function (inFile, outFile, options) {
       var header, outStream
       function withEncryptor (encryptor, totalSize) {
         encryptor.once('header', function (h) {
-          header = translateHeader(h, recipients)
+          header = options.translate ? translateHeader(h, recipients) : h
         })
         if (options.armor) {
           var chunks = []

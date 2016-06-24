@@ -44,7 +44,35 @@ module.exports = function (input, options) {
     ], function (info) {
       pubkey.name = info.name
       pubkey.email = info.email
-      fs.writeFileSync(outPath, pubkey.toString() + '\n', {mode: parseInt('0600', 8), flag: 'a+'})
+      var walletDir = options.parent.wallet
+      var inFile = path.join(walletDir, 'imported_keys')
+      var str
+      try {
+        str = fs.readFileSync(inFile, {encoding: 'utf8'})
+      }
+      catch (e) {
+        str = ''
+      }
+      var lines = (str || '').trim().split('\n').filter(function (line) {
+        return !!line.trim()
+      })
+      var goodKeys = []
+      lines.forEach(function (line) {
+        try {
+          var thisPubkey = libPubkey.parse(line.trim())
+        }
+        catch (e) {
+          return
+        }
+        if (thisPubkey.verifyPk.toString('hex') !== pubkey.verifyPk.toString('hex') && thisPubkey.email !== pubkey.email) {
+          goodKeys.push(thisPubkey)
+        }
+      })
+      goodKeys.push(pubkey)
+      var goodLines = goodKeys.map(function (pubkey) {
+        return pubkey.toString()
+      })
+      fs.writeFileSync(inFile, goodLines.join('\n'), {mode: parseInt('0600', 8)})
       console.log('Imported OK: ' + pubkey.toString(true))
     }, function (err) {
       throw err

@@ -1,4 +1,4 @@
-function printHeader (header) {
+function printHeaders (header) {
   var longest = 0
   Object.keys(header).forEach(function (k) {
     longest = Math.max(k.length, longest)
@@ -9,4 +9,4 @@ function printHeader (header) {
   })
   console.error()
 }
-module.exports = printHeader
+module.exports = printHeaders
