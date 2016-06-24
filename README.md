@@ -263,8 +263,9 @@ signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3h
 
 ### release 4.0
 
-- Switch to base58-encoding for everything but hashes
-- Hashes are now hex-encoded
+- now you can regenerate your decryption key with `salty init --regen`
+- switch to base58-encoding for everything but hashes
+- hashes are now hex-encoded
 - `\r\n` newlines in header/PEM changed to `\n`
 - Custom header support for encryption or signing
 - import now dedupes on verifyPk/email
