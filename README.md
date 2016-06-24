@@ -9,6 +9,10 @@ Salty is an alternative to PGP/GPG using [NaCl](https://en.wikipedia.org/wiki/Na
 
 Commits and tags in this repo are signed with GPG key [5FBB 2F98 3862 1AFF](https://keybase.io/carlos8f).
 
+### Upcoming GUI
+
+A GUI is being developed as a node HTTP server you can host locally or remotely to access your wallet. Follow its development [here](https://github.com/carlos8f/salty-gui).
+
 ### Features
 
 - NO [3rd parties](https://peerio.com/pricing.html), NO [p2p network](https://en.wikipedia.org/wiki/PRISM_(surveillance_program)), NO [browser js](https://www.nccgroup.trust/us/about-us/newsroom-and-events/blog/2011/august/javascript-cryptography-considered-harmful/), NO [package managers](https://docs.npmjs.com/misc/scripts), NO [exotic/compiled deps](https://www.openssl.org/news/vulnerabilities.html), and NO [shady corporations](https://github.com/VirgilSecurity). PERIOD.
