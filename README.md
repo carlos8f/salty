@@ -1,4 +1,4 @@
-salty
+![https://raw.githubusercontent.com/carlos8f/salty-gui/master/public/salt-shaker-inverse.png](logo) salty
 =====
 
 Alternative public key encryption
