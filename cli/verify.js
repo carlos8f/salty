@@ -35,7 +35,6 @@ module.exports = function (inSig, inFile, options) {
   }
   function withStr (headerStr) {
     loadRecipients(options.parent.wallet, function (err, recipients) {
-      if (err) throw err
       if (options.armor) {
         var message = libMessage.parse(headerStr)
         var hash = crypto.createHash(message.header['hash-algorithm']).update(message.body).digest()
