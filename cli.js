@@ -1,5 +1,7 @@
 module.exports = {
+  decode: require('./cli/decode'),
   decrypt: require('./cli/decrypt'),
+  encode: require('./cli/encode'),
   encrypt: require('./cli/encrypt'),
   id: require('./cli/id'),
   import: require('./cli/import'),

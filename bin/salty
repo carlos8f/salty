@@ -89,6 +89,16 @@ program
   .action(cli.restore)
 
 program
+  .command('encode [infile]')
+  .description('output base58-encoded data to STDOUT')
+  .action(cli.encode)
+
+program
+  .command('decode [infile]')
+  .description('output base58-decoded data to STDOUT')
+  .action(cli.decode)
+
+program
   .command('*')
   .action(function (infile) {
     program.outputHelp()
