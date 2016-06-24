@@ -268,11 +268,16 @@ signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3h
 
 ## Log
 
+### release [4.0.2](https://github.com/carlos8f/salty/releases/tag/v4.0.2) (latest)
+
+- fix ascii armor signature headers not wrapped
+- add signing examples
+
 ### release 4.0.1
 
 - updated generic install example to use `wget` instead of `git`
 
-### release 4.0
+### release 4.0.0
 
 - now you can regenerate your decryption key with `salty init --regen`
 - switch to base58-encoding for everything but hashes
@@ -286,7 +291,7 @@ signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3h
 - signatures support arbitrary hash algorithms
 - added `--no-translate` flag to output raw header
 
-### release v3.1.0
+### release 3.1.0
 
 - Added anonymous gist support
 - Added tar/gz support for encrypting directories
