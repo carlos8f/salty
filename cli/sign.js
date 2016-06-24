@@ -61,6 +61,7 @@ module.exports = function (inFile, outFile, options) {
       }
       header['hash'] = hash.toString('hex')
       var headerStr = writeHeader(header)
+      //console.log('headerStr', JSON.stringify(headerStr, null, 2))
       header['signature'] = bs58.encode(wallet.sign(Buffer(headerStr), true))
       var finalHeader = writeHeader(header)
       if (options.armor) {
