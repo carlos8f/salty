@@ -126,19 +126,19 @@ Appends a header to the message for verification, and pads the plaintext with nu
 Always contains a sha256 HMAC to authenticate the message, and optionally contains a signature from the sender.
 
 ```
-hash: base64( sha256_hmac( shared_secret ) of message )
-[from-salty-id]: base64(encryptPk (32) + verifyPk (32))
-[to-salty-id]: base64(encryptPk (32) + verifyPk (32))
-[signature]: base64( detached sig of previous headers )
+hash: hex( sha256_hmac( shared_secret ) of message )
+[from-salty-id]: base58(encryptPk (32) + verifyPk (32))
+[to-salty-id]: base58(encryptPk (32) + verifyPk (32))
+[signature]: base58( detached sig of previous headers )
 ```
 
 Example:
 
 ```
-hash:          dH4McUU9sLJV+i34hfXjSUGTYn2xQhj2gbAYqAMighU=
-from-salty-id: oU3lbcpdHo81Eo8SifwoHg5CEEZ5q-Rb0_zMWpJU-GWlr9lIjILqv5RneVsMo3azdEJ8UYTmz86dz0Cx5ciIsw
-to-salty-id:   oU3lbcpdHo81Eo8SifwoHg5CEEZ5q-Rb0_zMWpJU-GWlr9lIjILqv5RneVsMo3azdEJ8UYTmz86dz0Cx5ciIsw
-signature:     vtQQktMrFEszVSeVMgqN22EPOCMjZQZvA2TZkujcE7BtXAv9Lf7k1P4HE1D/c/XoIPvoQ8LiHJEgumWlgGuNDg==
+hash:          3a5a42ad3cadea1ac4abd5169a7a1c2b2017404e00b9f08c5dee6c205f7a197a
+from-salty-id: 2ZuU37oJ1erD85AzVohXq6Y74GHv2hjNYB9fu3P5o9rsGSvRo19HK2wTL4MLma3N6gVFqXN81VTqQ6apBhc5Kezq
+to-salty-id:   self
+signature:     5V1c1P5a8dqDVMPhwqnDF39ZrHpaw7jhetEgHyPUkjM8tYvugPzDJ3xyhD9WdJQ4AjwYkN2XdWhnTB3GTRMJuAEd
 ```
 
 ### Signature
@@ -146,19 +146,19 @@ signature:     vtQQktMrFEszVSeVMgqN22EPOCMjZQZvA2TZkujcE7BtXAv9Lf7k1P4HE1D/c/XoI
 Always contains the signer's public keys, a sha256 HMAC to authenticate the file, keyed with a 32-byte random nonce, and a signature.
 
 ```
-from-salty-id: base64(encryptPk (32) + verifyPk (32))
-hash: base64( sha256_hmac( nonce ) of file )
-nonce: base64( randomNonce (32) )
-signature: base64( detached sig of previous headers )
+from-salty-id: base58(encryptPk (32) + verifyPk (32))
+hash-algorithm: algorithm
+hash: hex( algorithm( file ) )
+signature: base58( detached sig of previous headers )
 ```
 
 Example:
 
 ```
-from-salty-id: jbMGsmaXG7bJLZjhnn/i+9GyQtEVBBTL8JwdpBgKC0y6wvvEbesSYp4vOkjOEt5IZtt0pdrXI2ARZKkAIHUnhg==
-nonce: rKtBFyFXZbLrmCzUsxVKlqPkYinmOWqvJSLN3Oyhejg=
-hash: gXkCnKr04zD8rTzs++17z9LWGoNgWceSo2XQXQJOFSQ=
-signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqcK64BpnzphRS5UpYDg==
+from-salty-id: 2ZuU37oJ1erD85AzVohXq6Y74GHv2hjNYB9fu3P5o9rsGSvRo19HK2wTL4MLma3N6gVFqXN81VTqQ6apBhc5Kezq
+hash-algorithm: sha256
+hash: 19e406822f9eac2c19f0a0d59c1ab1f554e354fadbc1836f9e10858ce227ed2c
+signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3htsWbXZdF6LAsoyXoE3v
 ```
 
 ## Usage
@@ -272,6 +272,7 @@ signature: QqXQ8EMqpqrC8OZvNssh5dt45NHiYMuRsPjZAOjIQSvUxrgrX+fVjLVwPmulP7h3l4mqc
 - "attached" signatures now available with ASCII armor flag
 - signatures can be verified without previous setup (wallet creation)
 - signatures support arbitrary hash algorithms
+- added `--no-translate` flag to output raw header
 
 ### release v3.1.0
 

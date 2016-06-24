@@ -47,7 +47,7 @@ program
   .option('-a, --armor', 'output ASCII armor to STDOUT')
   .option('-g, --gist', 'upload encrypted result as a gist')
   .option('-F, --force', 'ignore warnings and do it')
-  .option('--no-translate', 'leave header untranslated')
+  .option('--no-translate', 'output raw header')
   .option('-D, --delete', 'delete the original file after encryption')
   .action(cli.encrypt)
 
@@ -59,7 +59,7 @@ program
   .option('-a, --armor', 'expect ASCII armor, output to STDOUT')
   .option('-g, --gist', 'download the encrypted input from a gist')
   .option('-F, --force', 'ignore warnings and do it')
-  .option('--no-translate', 'leave header untranslated')
+  .option('--no-translate', 'output raw header')
   .option('-D, --delete', 'delete the salty file after verification')
   .action(cli.decrypt)
 
@@ -70,7 +70,7 @@ program
   .option('-H, --header <key: value>', 'add a custom header (repeatable)')
   .option('-h, --hash <alg>', 'hash algorithm (default: sha256)', String, 'sha256')
   .option('-a, --armor', 'output ASCII armor to STDOUT')
-  .option('--no-translate', 'leave header untranslated')
+  .option('--no-translate', 'output raw header')
   .option('-F, --force', 'ignore warnings and do it')
   .action(cli.sign)
 
@@ -78,7 +78,7 @@ program
   .command('verify <insig> [infile]')
   .alias('v')
   .option('-a, --armor', 'expect ASCII armor, output to STDOUT')
-  .option('--no-translate', 'leave header untranslated')
+  .option('--no-translate', 'output raw header')
   .description('verify a signature')
   .action(cli.verify)
 
