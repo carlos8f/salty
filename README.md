@@ -150,7 +150,7 @@ signature:     5V1c1P5a8dqDVMPhwqnDF39ZrHpaw7jhetEgHyPUkjM8tYvugPzDJ3xyhD9WdJQ4A
 
 ### Signature
 
-Always contains the signer's public keys, a sha256 HMAC to authenticate the file, keyed with a 32-byte random nonce, and a signature.
+Always contains the signer's public keys, a hash to authenticate the file, and a signature.
 
 ```
 from-salty-id: base58(encryptPk (32) + verifyPk (32))
