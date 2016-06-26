@@ -40,8 +40,6 @@ describe('tests', function () {
   })
   it('set up alice', function (done) {
     suppose(BIN, ['init', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
-      .when('Creating wallet...\nYour name: ').respond('Alice\n')
-      .when('Your email address: ').respond('alice@s8f.org\n')
       .when('Create a passphrase: ').respond('disney sucks\n')
       .when('Verify passphrase: ').respond('disney sucks\n')
       .end(function (code) {
@@ -52,8 +50,6 @@ describe('tests', function () {
   })
   it('set up bob', function (done) {
     suppose(BIN, ['init', '--wallet', 'bob'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
-      .when('Creating wallet...\nYour name: ').respond('Bob\n')
-      .when('Your email address: ').respond('bob@s8f.org\n')
       .when('Create a passphrase: ').respond('i am bob\n')
       .when('Verify passphrase: ').respond('i am bob\n')
       .end(function (code) {
@@ -83,8 +79,6 @@ describe('tests', function () {
     suppose(BIN, ['init', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
       .when('Wallet exists. Update it? (y/n): ').respond('y\n')
       .when('Wallet is encrypted.\nEnter passphrase: ').respond('disney sucks\n')
-      .when('Your name: (Alice) ').respond('\n')
-      .when('Your email address: (alice@s8f.org) ').respond('\n')
       .when('Create a passphrase: ').respond('not a blonde\n')
       .when('Verify passphrase: ').respond('not a blonde\n')
       .end(function (code) {
@@ -113,8 +107,8 @@ describe('tests', function () {
   it('alice import bob', function (done) {
     var chunks = []
     var proc = suppose(BIN, ['import', '--wallet', 'alice', bob_pubkey], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
-      .when('Enter name: (Bob) ').respond('\n')
-      .when('Enter email: (bob@s8f.org) ').respond('\n')
+      .when('Enter name: ').respond('Bob\n')
+      .when('Enter email: ').respond('bob@s8f.org\n')
       .end(function (code) {
         assert(!code)
         done()
@@ -133,7 +127,7 @@ describe('tests', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
         var match = stdout.match(libSalty.pubkey.regex)
         assert.equal(match.length, 4)
-        assert.equal(match[0], bob_pubkey)
+        assert.equal(match[0], bob_pubkey.trim() + ' "Bob" <bob@s8f.org>')
         done()
       })
   })

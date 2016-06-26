@@ -53,16 +53,6 @@ module.exports = function (options) {
     }
     q = q.concat([
       {
-        label: 'Your name',
-        key: 'name',
-        default: wallet && wallet.pubkey.name
-      },
-      {
-        label: 'Your email address',
-        key: 'email',
-        default: wallet && wallet.pubkey.email
-      },
-      {
         label: 'Create a passphrase',
         key: 'passphrase',
         type: 'password'
@@ -81,8 +71,6 @@ module.exports = function (options) {
     prompt.multi(q, function (info) {
       var isUpdate = !!wallet
       if (isUpdate) {
-        wallet.pubkey.name = info.name === 'NULL' ? null : info.name
-        wallet.pubkey.email = info.email === 'NULL' ? null : info.email
         if (options.regen) {
           wallet.regen()
         }
