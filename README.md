@@ -268,7 +268,11 @@ signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3h
 
 ## Log
 
-### release [4.0.3](https://github.com/carlos8f/salty/releases/tag/v4.0.3) (latest)
+### release [4.1.0](https://github.com/carlos8f/salty/releases/tag/v4.1.0) (latest)
+
+- no longer asks for name/email for wallet
+
+### release 4.0.3
 
 - fix translateHeader if no name/email
 
