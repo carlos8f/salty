@@ -96,7 +96,7 @@ Designed to be sharable, human-readable, and unique.
 Example:
 
 ```
-2ZuU37oJ1erD85AzVohXq6Y74GHv2hjNYB9fu3P5o9rsGSvRo19HK2wTL4MLma3N6gVFqXN81VTqQ6apBhc5Kezq "Carlos" <carlos@s8f.org>
+2ZuU37oJ1erD85AzVohXq6Y74GHv2hjNYB9fu3P5o9rsGSvRo19HK2wTL4MLma3N6gVFqXN81VTqQ6apBhc5Kezq
 ```
 
 ### Salty file
@@ -209,7 +209,7 @@ signature: 49VPoEqf3iNrpaWCjEejfe2vqT8ZHHkb68U6JRzxCEqWSoVoe7AjPEN2c3XYXgCuW7P3h
   Options:
 
     -h, --help                 output usage information
-    -t, --to <email>           email address to encrypt for. (must be imported first. default: self)
+    -t, --to <pubkey|email>    email address to encrypt for. (must be imported first. default: self)
     -m, --message              compose a message instead of using [infile] (implies -a)
     -s, --sign                 sign the message to reveal/prove our identity
     -H, --header <key: value>  add a custom header (repeatable)
