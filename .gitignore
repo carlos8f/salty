@@ -1,3 +1,4 @@
+node_modules
 node_modules/.bin/_mocha
 node_modules/.bin/jade
 node_modules/.bin/mocha

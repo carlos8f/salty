@@ -5,6 +5,7 @@
   "main": "lib.js",
   "bin": "./bin/salty",
   "dependencies": {
+    "brace-expansion": "^1.1.11",
     "bs58": "^3.0.0",
     "cli-prompt": "^0.6.0",
     "commander": "git+https://github.com/carlos8f/commander.js.git",
@@ -21,7 +22,7 @@
     "tweetnacl": "^0.14.3"
   },
   "devDependencies": {
-    "mocha": "^2.5.3",
+    "mocha": "^5.2.0",
     "suppose": "git+https://github.com/carlos8f/node-suppose.git"
   },
   "scripts": {
