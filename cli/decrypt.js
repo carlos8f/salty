@@ -13,7 +13,7 @@ var fs = require('fs')
   , tar = require('tar')
   , zlib = require('zlib')
   , path = require('path')
-  , tmpDir = require('os').tmpDir()
+  , tmpDir = require('os').tmpdir()
   , crypto = require('crypto')
   , rimraf = require('rimraf')
 
