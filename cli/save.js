@@ -8,7 +8,17 @@ var fs = require('fs')
 
 module.exports = function (inDir, outPath, options) {
   if (!inDir) inDir = options.parent.wallet
+  inDir = path.resolve(inDir)
+  /*
+  console.error('pack inDir', inDir)
+  require('child_process').exec('ls -la ' + inDir, function (err, stdout, stderr) {
+    if (err) throw err
+    console.error('save inDir', stdout)
+  })
+  */
   if (!outPath) outPath = 'salty.pem'
+  outPath = path.resolve(outPath)
+  //console.error('pack outPath', outPath)
   if (options.parent.force) return withCheck()
   try {
     fs.statSync(outPath)
@@ -45,10 +55,11 @@ module.exports = function (inDir, outPath, options) {
       })
       gzipStream.once('end', function () {
         var zlibBuffer = Buffer.concat(gzipChunks)
+        //console.error('zlibBuffer', zlibBuffer.length)
         var pem = pempal.encode(zlibBuffer, {tag: 'SALTY WALLET', passphrase: info.passphrase})
         fs.writeFile(outPath, pem + '\n', {mode: parseInt('0644', 8)}, function (err) {
           if (err) throw err
-          console.log('Saved to', outPath)
+          //console.log('Saved to', outPath)
         })
       })
       var reader = fstream.Reader({

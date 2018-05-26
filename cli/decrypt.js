@@ -31,7 +31,7 @@ module.exports = function (inFile, outFile, options) {
         var inStream = through()
         withInstream(inStream, gist)
         setImmediate(function () {
-          inStream.end(Buffer(str))
+          inStream.end(Buffer.from(str))
         })
       })
     }
@@ -129,6 +129,7 @@ module.exports = function (inFile, outFile, options) {
           header = options.translate ? translateHeader(h, wallet.recipients) : h
           if (h['content-encoding'] === 'x-gzip' && h['content-type'] === 'application/x-tar') {
             var tmpPath = '.' + crypto.randomBytes(16).toString('hex')
+            tmpPath = path.resolve(tmpPath)
             var extractStream = tar.Extract({path: tmpPath, mode: parseInt('0700', 8)})
             function onExit () {
               try {

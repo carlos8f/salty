@@ -9,7 +9,7 @@ module.exports = function (inFile, options) {
   })
   inStream.once('end', function () {
     var str = Buffer.concat(chunks).toString('utf8').trim()
-    var buf = Buffer(bs58.decode(str))
+    var buf = Buffer.from(bs58.decode(str))
     process.stdout.write(buf)
   })
 }

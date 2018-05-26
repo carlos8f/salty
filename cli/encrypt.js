@@ -19,6 +19,7 @@ var fs = require('fs')
   , path = require('path')
   , minimist = require('minimist')
   , headersFromArgs = require('../utils/headersFromArgs')
+  , libPubkey = require('../lib/pubkey')
 
 module.exports = function (inFile, outFile, options) {
   options.headers = headersFromArgs()
@@ -29,6 +30,7 @@ module.exports = function (inFile, outFile, options) {
     if (!outFile) {
       outFile = crypto.randomBytes(4).toString('hex') + '.salty'
     }
+    outFile = path.resolve(outFile)
     try {
       fs.statSync(outFile)
       if (!options.parent.force) {
@@ -41,12 +43,22 @@ module.exports = function (inFile, outFile, options) {
       }
     }
   }
+  if (inFile) inFile = path.resolve(inFile)
+  if (outFile) outFile = path.resolve(outFile)
   var nonce = makeNonce()
   loadRecipients(walletDir, function (err, recipients) {
     if (err) throw err
-    var recipient = options.to ? recipients[options.to] : recipients.self
+    var recipient = recipients[options.to]
     if (!recipient) {
-      throw new Error('Recipient not found')
+      if (options.to) {
+        recipient = libPubkey.parse(options.to)
+      }
+      else {
+        recipient = recipients.self
+      }
+      if (!recipient) {
+        throw new Error('Recipient not found')
+      }
     }
     if (options.sign) {
       loadWallet(walletDir, function (err, wallet) {
@@ -61,7 +73,7 @@ module.exports = function (inFile, outFile, options) {
         var lines = []
         process.stdin.once('end', function () {
           lines.push('')
-          var m = Buffer(lines.join('\n'))
+          var m = Buffer.from(lines.join('\n'))
           withMessage(m)
         })
         ;(function getLine () {

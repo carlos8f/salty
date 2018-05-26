@@ -3,6 +3,12 @@ var fs = require('fs')
   , libPubkey = require('../lib/pubkey')
 
 function loadPubkey (walletDir, cb) {
+  /*
+  require('child_process').exec('ls -la ' + walletDir, function (err, stdout, stderr) {
+    if (err) throw err
+    console.error('loadPubkey', walletDir, stdout)
+  })
+  */
   fs.readFile(path.join(walletDir, 'id_salty.pub'), {encoding: 'utf8'}, function (err, str) {
     if (err && err.code === 'ENOENT') {
       return cb(new Error('No salty wallet set up. Type `salty init` to make one.'))

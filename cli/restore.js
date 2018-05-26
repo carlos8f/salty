@@ -7,7 +7,9 @@ var fs = require('fs')
 
 module.exports = function (inPath, outDir, options) {
   if (!inPath) inPath = 'salty.pem'
+  inPath = path.resolve(inPath)
   if (!outDir) outDir = options.parent.wallet
+  outDir = path.resolve(outDir)
   if (options.parent.force) return withCheck()
   try {
     fs.statSync(outDir)
@@ -36,6 +38,12 @@ module.exports = function (inPath, outDir, options) {
     var extractStream = tar.Extract({path: outDir, mode: parseInt('0700', 8)})
     var gunzipStream = zlib.createGunzip()
     extractStream.on('end', function () {
+      /*
+      require('child_process').exec('ls -la ' + outDir, function (err, stdout, stderr) {
+        if (err) throw err
+        console.error('after unpack', stdout)
+      })
+      */
       console.log('Restored to', outDir)
     })
     gunzipStream.pipe(extractStream)

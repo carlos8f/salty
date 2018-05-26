@@ -60,11 +60,12 @@ describe('tests', function () {
   var alice_pubkey
   it('alice pubkey', function (done) {
     var chunks = []
-    suppose(BIN, ['pubkey', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
+    var proc = suppose(BIN, ['pubkey', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
       .end(function (code) {
         assert(!code)
       })
-      .stdout.on('data', function (chunk) {
+
+    proc.stdout.on('data', function (chunk) {
         chunks.push(chunk)
       })
       .once('end', function () {
@@ -74,6 +75,8 @@ describe('tests', function () {
         alice_pubkey = match[0]
         done()
       })
+
+    proc.stderr.pipe(process.stderr)
   })
   it('alice change password', function (done) {
     suppose(BIN, ['init', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
@@ -140,6 +143,7 @@ describe('tests', function () {
         assert(!code)
         done()
       })
+      .stderr.pipe(process.stderr)
   })
   it('alice destroy', function () {
     rimraf.sync(path.join(tmpDir, 'alice'))
@@ -150,8 +154,15 @@ describe('tests', function () {
       .when('Enter passphrase: ').respond('blarg\n')
       .end(function (code) {
         assert(!code)
+        /*
+        require('child_process').exec('ls -la ' + path.join(tmpDir, 'alice'), function (err, stdout, stderr) {
+          if (err) throw err
+          console.error('alice after restore', stdout)
+        })
+        */
         done()
       })
+      .stderr.pipe(process.stderr)
   })
   var outFile
   it('alice encrypt for bob (no sign)', function (done) {
@@ -171,7 +182,7 @@ describe('tests', function () {
         outFile = match[1]
         done()
       })
-    //proc.stderr.pipe(process.stderr)
+    proc.stderr.pipe(process.stderr)
   })
   it('bob decrypt', function (done) {
     var proc = suppose(BIN, ['decrypt', outFile, '--wallet', 'bob'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
@@ -182,7 +193,13 @@ describe('tests', function () {
       })
   })
   it('verify decrypt', function (done) {
-    fs.createReadStream(path.join(tmpDir, outFile.replace('.salty', '')))
+    /*
+    require('child_process').exec('ls -la ' + outFile.replace('.salty', ''), function (err, stdout, stderr) {
+      if (err) throw err
+      console.error('file after decrypt', stdout)
+    })
+    */
+    fs.createReadStream(outFile.replace('.salty', ''))
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
         assert.equal(data.toString('hex'), '2bce2ffc40e0d90afe577a76db5db4290c48ddf4')
@@ -218,7 +235,7 @@ describe('tests', function () {
       //.stderr.pipe(process.stderr)
   })
   it('verify decrypt', function (done) {
-    fs.createReadStream(path.join(tmpDir, outFile.replace('.salty', '')))
+    fs.createReadStream(outFile.replace('.salty', ''))
       .pipe(crypto.createHash('sha1'))
       .on('data', function (data) {
         assert.equal(data.toString('hex'), '2bce2ffc40e0d90afe577a76db5db4290c48ddf4')
@@ -248,16 +265,18 @@ describe('tests', function () {
       .end(function (code) {
         assert(!code)
       })
-      .stdout.on('data', function (chunk) {
+    proc.stdout.on('data', function (chunk) {
         chunks.push(chunk)
       })
       .once('end', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
+        console.error('stdout', stdout)
         assert(stdout.match(/BEGIN SALTY MESSAGE/))
         assert(stdout.match(/END SALTY MESSAGE/))
         pem = stdout
         done()
       })
+    proc.stderr.pipe(process.stderr)
   })
   it('write pem to file', function (done) {
     fs.writeFile(path.join(tmpDir, 'ctxt.pem'), pem, done)
@@ -273,6 +292,7 @@ describe('tests', function () {
         assert(valid)
         done()
       })
+    proc
       .stdout.on('data', function (chunk) {
         chunks.push(chunk)
       })
@@ -284,6 +304,7 @@ describe('tests', function () {
         assert(endMatch, stdout)
         valid = true
       })
+    proc.stderr.pipe(process.stderr)
   })
   var msg
   it('alice encrypt for bob (compose)', function (done) {
@@ -297,6 +318,7 @@ describe('tests', function () {
         assert(valid)
         done()
       })
+    proc
       .stdout.on('data', function (chunk) {
         chunks.push(chunk)
       })
@@ -307,6 +329,7 @@ describe('tests', function () {
         pem = stdout
         valid = true
       })
+    proc.stderr.pipe(process.stderr)
   })
   it('write pem to file', function (done) {
     fs.writeFile(path.join(tmpDir, 'ctxt.pem'), pem, done)

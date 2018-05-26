@@ -5,6 +5,7 @@ var fs = require('fs')
 
 function loadRecipients (walletDir, cb) {
   var inFile = path.join(walletDir, 'imported_keys')
+  inFile = path.resolve(inFile)
   fs.readFile(inFile, {encoding: 'utf8'}, function (err, str) {
     if (err && err.code !== 'ENOENT') return cb(err)
     var lines = (str || '').trim().split('\n')
