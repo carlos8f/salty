@@ -94,7 +94,7 @@ module.exports = function (inFile, outFile, options) {
         var inStream, encryptor
         if (inStat.isDirectory()) {
           var tarStream = tar.Pack({fromBase: true})
-          gzipStream = tarStream.pipe(zlib.createGzip())
+          var gzipStream = tarStream.pipe(zlib.createGzip())
           var tmpFile = path.join(tmpDir, crypto.randomBytes(16).toString('hex'))
           var tmpStream = fs.createWriteStream(tmpFile, {mode: parseInt('0600', 8)})
           process.on('uncaughtException', function (err) {

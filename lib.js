@@ -5,5 +5,6 @@ module.exports = {
   ephemeral: require('./lib/ephemeral'),
   header: require('./lib/header'),
   pubkey: require('./lib/pubkey'),
-  wallet: require('./lib/wallet')
+  wallet: require('./lib/wallet'),
+  makeNonce: require('./utils/makeNonce')
 }

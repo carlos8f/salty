@@ -76,7 +76,7 @@ describe('tests', function () {
         done()
       })
 
-    proc.stderr.pipe(process.stderr)
+    //proc.stderr.pipe(process.stderr)
   })
   it('alice change password', function (done) {
     suppose(BIN, ['init', '--wallet', 'alice'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
@@ -143,7 +143,7 @@ describe('tests', function () {
         assert(!code)
         done()
       })
-      .stderr.pipe(process.stderr)
+      //.stderr.pipe(process.stderr)
   })
   it('alice destroy', function () {
     rimraf.sync(path.join(tmpDir, 'alice'))
@@ -162,7 +162,7 @@ describe('tests', function () {
         */
         done()
       })
-      .stderr.pipe(process.stderr)
+      //.stderr.pipe(process.stderr)
   })
   var outFile
   it('alice encrypt for bob (no sign)', function (done) {
@@ -182,7 +182,7 @@ describe('tests', function () {
         outFile = match[1]
         done()
       })
-    proc.stderr.pipe(process.stderr)
+    //proc.stderr.pipe(process.stderr)
   })
   it('bob decrypt', function (done) {
     var proc = suppose(BIN, ['decrypt', outFile, '--wallet', 'bob'], {cwd: tmpDir, debug: fs.createWriteStream('/tmp/debug.txt')})
@@ -270,13 +270,13 @@ describe('tests', function () {
       })
       .once('end', function () {
         var stdout = Buffer.concat(chunks).toString('utf8')
-        console.error('stdout', stdout)
+        //console.error('stdout', stdout)
         assert(stdout.match(/BEGIN SALTY MESSAGE/))
         assert(stdout.match(/END SALTY MESSAGE/))
         pem = stdout
         done()
       })
-    proc.stderr.pipe(process.stderr)
+    //proc.stderr.pipe(process.stderr)
   })
   it('write pem to file', function (done) {
     fs.writeFile(path.join(tmpDir, 'ctxt.pem'), pem, done)
@@ -304,7 +304,7 @@ describe('tests', function () {
         assert(endMatch, stdout)
         valid = true
       })
-    proc.stderr.pipe(process.stderr)
+    //proc.stderr.pipe(process.stderr)
   })
   var msg
   it('alice encrypt for bob (compose)', function (done) {
@@ -329,7 +329,7 @@ describe('tests', function () {
         pem = stdout
         valid = true
       })
-    proc.stderr.pipe(process.stderr)
+    //proc.stderr.pipe(process.stderr)
   })
   it('write pem to file', function (done) {
     fs.writeFile(path.join(tmpDir, 'ctxt.pem'), pem, done)
@@ -344,6 +344,7 @@ describe('tests', function () {
         assert(valid)
         done()
       })
+    proc
       .stdout.on('data', function (chunk) {
         chunks.push(chunk)
       })
@@ -352,6 +353,7 @@ describe('tests', function () {
         assert.deepEqual(stdout, msg)
         valid = true
       })
+    //proc.stderr.pipe(process.stderr)
   })
   it('alice sign', function (done) {
     var chunks = [], valid = false
