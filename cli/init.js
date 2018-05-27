@@ -76,7 +76,7 @@ module.exports = function (options) {
         }
       }
       else {
-        wallet = libWallet.create(info)
+        wallet = libWallet.create()
       }
       var str = wallet.toPEM(info.passphrase)
       fs.writeFileSync(path.join(walletDir, 'id_salty'), str + '\n', {mode: parseInt('0600', 8)})
