@@ -1,5 +1,6 @@
 var fs = require('fs')
   , path = require('path')
+  , libPubkey = require('../lib/pubkey.js')
 
 module.exports = function (input, options) {
   var walletDir = options.parent.wallet
